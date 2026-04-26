@@ -32,6 +32,6 @@ Nếu tập dữ liệu nhỏ, bạn có thể áp dụng các kỹ thuật mô 
 * **Thêm nhiễu Gaussian nhẹ** vào các đặc trưng Nhóm B để mô hình trở nên bền bỉ hơn (robust) với các sai số đo đạc nhỏ của thiết bị.
 * **Chuẩn hóa theo Staining Protocol:** Nếu bạn phát hiện `staining_protocol` ảnh hưởng đến `mean_r, g, b`, hãy thực hiện **Group-wise Scaling** (chuẩn hóa riêng biệt cho từng nhóm quy trình nhuộm) để đưa tất cả về cùng một không gian màu sắc tham chiếu.
 
-[Chi tiết](detail_4.md)
+[Chi tiết](detail_5.md)
 
 ---
