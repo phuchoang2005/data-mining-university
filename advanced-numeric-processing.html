@@ -1,0 +1,497 @@
+<!doctype html>
+<html>
+  <head>
+    <title>advanced-numeric-processing.html</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+
+    <style>
+      /* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+      /*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+      body {
+        font-family: var(
+          --vscode-markdown-font-family,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe WPC",
+          "Segoe UI",
+          "Ubuntu",
+          "Droid Sans",
+          sans-serif
+        );
+        font-size: var(--vscode-markdown-font-size, 14px);
+        padding: 0 26px;
+        line-height: var(--vscode-markdown-line-height, 22px);
+        word-wrap: break-word;
+      }
+
+      #code-csp-warning {
+        position: fixed;
+        top: 0;
+        right: 0;
+        color: white;
+        margin: 16px;
+        text-align: center;
+        font-size: 12px;
+        font-family: sans-serif;
+        background-color: #444444;
+        cursor: pointer;
+        padding: 6px;
+        box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.25);
+      }
+
+      #code-csp-warning:hover {
+        text-decoration: none;
+        background-color: #007acc;
+        box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.25);
+      }
+
+      body.scrollBeyondLastLine {
+        margin-bottom: calc(100vh - 22px);
+      }
+
+      body.showEditorSelection .code-line {
+        position: relative;
+      }
+
+      body.showEditorSelection .code-active-line:before,
+      body.showEditorSelection .code-line:hover:before {
+        content: "";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: -12px;
+        height: 100%;
+      }
+
+      body.showEditorSelection li.code-active-line:before,
+      body.showEditorSelection li.code-line:hover:before {
+        left: -30px;
+      }
+
+      .vscode-light.showEditorSelection .code-active-line:before {
+        border-left: 3px solid rgba(0, 0, 0, 0.15);
+      }
+
+      .vscode-light.showEditorSelection .code-line:hover:before {
+        border-left: 3px solid rgba(0, 0, 0, 0.4);
+      }
+
+      .vscode-light.showEditorSelection .code-line .code-line:hover:before {
+        border-left: none;
+      }
+
+      .vscode-dark.showEditorSelection .code-active-line:before {
+        border-left: 3px solid rgba(255, 255, 255, 0.4);
+      }
+
+      .vscode-dark.showEditorSelection .code-line:hover:before {
+        border-left: 3px solid rgba(255, 255, 255, 0.6);
+      }
+
+      .vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+        border-left: none;
+      }
+
+      .vscode-high-contrast.showEditorSelection .code-active-line:before {
+        border-left: 3px solid rgba(255, 160, 0, 0.7);
+      }
+
+      .vscode-high-contrast.showEditorSelection .code-line:hover:before {
+        border-left: 3px solid rgba(255, 160, 0, 1);
+      }
+
+      .vscode-high-contrast.showEditorSelection
+        .code-line
+        .code-line:hover:before {
+        border-left: none;
+      }
+
+      img {
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      a {
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      a:focus,
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: 1px solid -webkit-focus-ring-color;
+        outline-offset: -1px;
+      }
+
+      hr {
+        border: 0;
+        height: 2px;
+        border-bottom: 2px solid;
+      }
+
+      h1 {
+        padding-bottom: 0.3em;
+        line-height: 1.2;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-weight: normal;
+      }
+
+      table {
+        border-collapse: collapse;
+      }
+
+      table > thead > tr > th {
+        text-align: left;
+        border-bottom: 1px solid;
+      }
+
+      table > thead > tr > th,
+      table > thead > tr > td,
+      table > tbody > tr > th,
+      table > tbody > tr > td {
+        padding: 5px 10px;
+      }
+
+      table > tbody > tr + tr > td {
+        border-top: 1px solid;
+      }
+
+      blockquote {
+        margin: 0 7px 0 5px;
+        padding: 0 16px 0 10px;
+        border-left-width: 5px;
+        border-left-style: solid;
+      }
+
+      code {
+        font-family:
+          Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace,
+          "Droid Sans Fallback";
+        font-size: 1em;
+        line-height: 1.357em;
+      }
+
+      body.wordWrap pre {
+        white-space: pre-wrap;
+      }
+
+      pre:not(.hljs),
+      pre.hljs code > div {
+        padding: 16px;
+        border-radius: 3px;
+        overflow: auto;
+      }
+
+      pre code {
+        color: var(--vscode-editor-foreground);
+        tab-size: 4;
+      }
+
+      /** Theming */
+
+      .vscode-light pre {
+        background-color: rgba(220, 220, 220, 0.4);
+      }
+
+      .vscode-dark pre {
+        background-color: rgba(10, 10, 10, 0.4);
+      }
+
+      .vscode-high-contrast pre {
+        background-color: rgb(0, 0, 0);
+      }
+
+      .vscode-high-contrast h1 {
+        border-color: rgb(0, 0, 0);
+      }
+
+      .vscode-light table > thead > tr > th {
+        border-color: rgba(0, 0, 0, 0.69);
+      }
+
+      .vscode-dark table > thead > tr > th {
+        border-color: rgba(255, 255, 255, 0.69);
+      }
+
+      .vscode-light h1,
+      .vscode-light hr,
+      .vscode-light table > tbody > tr + tr > td {
+        border-color: rgba(0, 0, 0, 0.18);
+      }
+
+      .vscode-dark h1,
+      .vscode-dark hr,
+      .vscode-dark table > tbody > tr + tr > td {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+    </style>
+
+    <style>
+      /* Tomorrow Theme */
+      /* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+      /* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+      /* Tomorrow Comment */
+      .hljs-comment,
+      .hljs-quote {
+        color: #8e908c;
+      }
+
+      /* Tomorrow Red */
+      .hljs-variable,
+      .hljs-template-variable,
+      .hljs-tag,
+      .hljs-name,
+      .hljs-selector-id,
+      .hljs-selector-class,
+      .hljs-regexp,
+      .hljs-deletion {
+        color: #c82829;
+      }
+
+      /* Tomorrow Orange */
+      .hljs-number,
+      .hljs-built_in,
+      .hljs-builtin-name,
+      .hljs-literal,
+      .hljs-type,
+      .hljs-params,
+      .hljs-meta,
+      .hljs-link {
+        color: #f5871f;
+      }
+
+      /* Tomorrow Yellow */
+      .hljs-attribute {
+        color: #eab700;
+      }
+
+      /* Tomorrow Green */
+      .hljs-string,
+      .hljs-symbol,
+      .hljs-bullet,
+      .hljs-addition {
+        color: #718c00;
+      }
+
+      /* Tomorrow Blue */
+      .hljs-title,
+      .hljs-section {
+        color: #4271ae;
+      }
+
+      /* Tomorrow Purple */
+      .hljs-keyword,
+      .hljs-selector-tag {
+        color: #8959a8;
+      }
+
+      .hljs {
+        display: block;
+        overflow-x: auto;
+        color: #4d4d4c;
+        padding: 0.5em;
+      }
+
+      .hljs-emphasis {
+        font-style: italic;
+      }
+
+      .hljs-strong {
+        font-weight: bold;
+      }
+    </style>
+
+    <style>
+      /*
+ * Markdown PDF CSS
+ */
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu",
+          "Droid Sans", sans-serif, "Meiryo";
+        padding: 0 12px;
+      }
+
+      pre {
+        background-color: #f8f8f8;
+        border: 1px solid #cccccc;
+        border-radius: 3px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
+      }
+
+      pre:not(.hljs) {
+        padding: 23px;
+        line-height: 19px;
+      }
+
+      blockquote {
+        background: rgba(127, 127, 127, 0.1);
+        border-color: rgba(0, 122, 204, 0.5);
+      }
+
+      .emoji {
+        height: 1.4em;
+      }
+
+      code {
+        font-size: 14px;
+        line-height: 19px;
+      }
+
+      /* for inline code */
+      :not(pre):not(.hljs) > code {
+        color: #c9ae75; /* Change the old color so it seems less like an error */
+        font-size: inherit;
+      }
+
+      /* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+      .page {
+        page-break-after: always;
+      }
+    </style>
+
+    <script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+  </head>
+  <body>
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme:
+          document.body.classList.contains("vscode-dark") ||
+          document.body.classList.contains("vscode-high-contrast")
+            ? "dark"
+            : "default",
+      });
+    </script>
+    <h2
+      id="1-feature-engineering-tạo-đặc-trưng-dựa-trên-kiến-thức-miền-domain-knowledge"
+    >
+      1. Feature Engineering: Tạo đặc trưng dựa trên kiến thức miền (Domain
+      Knowledge)
+    </h2>
+    <p>
+      Mặc dù bạn đã có khá nhiều đặc trưng, nhưng việc tạo ra các biến tương tác
+      có thể giúp mô hình phi tuyến tính bắt trọn các dấu hiệu bệnh lý:
+    </p>
+    <ul>
+      <li>
+        <strong>Chuẩn hóa kích thước theo Độ phóng đại:</strong> Các biến
+        <code>cell_area_px</code> và <code>perimeter_px</code> phụ thuộc vào
+        <code>magnification_x</code>. Bạn nên tạo ra các đặc trưng thực tế bằng
+        cách quy đổi: $$\text{Actual Area} =
+        \frac{\text{cell_area_px}}{(\text{magnification_x})^2}$$ Việc này giúp
+        mô hình đồng nhất dữ liệu dù ảnh được chụp ở độ phóng đại 40x hay 100x.
+      </li>
+      <li>
+        <strong>Tỷ lệ tương phản màu sắc:</strong> Thay vì chỉ dùng
+        <code>mean_r, g, b</code> riêng lẻ, hãy tạo ra các tỷ lệ như $R/G$ hoặc
+        $G/B$. Trong huyết học, sự thay đổi sắc thái (ví dụ: tế bào bắt màu kiềm
+        hoặc ưa acid) là một chỉ số phân loại cực mạnh.
+      </li>
+    </ul>
+    <p><a href="detail_1.html">Chi tiết</a></p>
+    <h2 id="2-xử-lý-phân-phối-đa-đỉnh-multi-modality-bằng-clustering">
+      2. Xử lý phân phối đa đỉnh (Multi-modality) bằng Clustering
+    </h2>
+    <p>
+      Như bạn thấy ở Nhóm B, các biến có nhiều đỉnh (do chứa nhiều loại tế bào
+      khác nhau).
+    </p>
+    <ul>
+      <li>
+        <strong>Chiến lược:</strong> Sử dụng thuật toán
+        <strong>K-Means</strong> hoặc
+        <strong>Gaussian Mixture Models (GMM)</strong> để gom cụm các tế bào dựa
+        trên hình thái (<code>cell_area</code>, <code>nucleus_area</code>).
+      </li>
+      <li>
+        <strong>Ứng dụng:</strong> Thêm nhãn cụm (Cluster ID) này như một đặc
+        trưng đầu vào. Việc này &quot;mách&quot; cho mô hình biết tế bào này
+        thuộc nhóm kích thước nào trước khi thực hiện phân loại nhị nguyên.
+      </li>
+    </ul>
+    <p><a href="detail_2.html">Chi tiết</a></p>
+    <h2 id="3-lựa-chọn-đặc-trưng-feature-selection-chuyên-sâu">
+      3. Lựa chọn đặc trưng (Feature Selection) chuyên sâu
+    </h2>
+    <p>
+      Đừng chỉ giữ lại tất cả các biến. Như phân tích KDE ở Nhóm C, nhiều biến
+      huyết học (<code>wbc_count</code>, <code>rbc_count</code>) có khả năng
+      phân tách bằng 0.
+    </p>
+    <ul>
+      <li>
+        <strong>Recursive Feature Elimination (RFE):</strong> Sử dụng Random
+        Forest hoặc XGBoost để loại bỏ dần các đặc trưng ít quan trọng nhất.
+      </li>
+      <li>
+        <strong>Mutual Information:</strong> Tính toán độ phụ thuộc thông tin
+        giữa các biến đầu vào và <code>anomaly_label</code>. Những biến có điểm
+        Mutual Information thấp nên được loại bỏ để giảm nhiễu và tránh hiện
+        tượng <strong>Curse of Dimensionality</strong> (Lời nguyền đa chiều).
+      </li>
+    </ul>
+    <p><a href="detail_3.html">Chi tiết</a></p>
+    <h2 id="4-xử-lý-mất-cân-bằng-nhãn-advanced-imbalance-handling">
+      4. Xử lý mất cân bằng nhãn (Advanced Imbalance Handling)
+    </h2>
+    <p>
+      Với <code>anomaly_label</code> có Skewness 0.77, dữ liệu của bạn đang
+      lệch. Ngoài việc dùng SMOTE thông thường, hãy thử:
+    </p>
+    <ul>
+      <li>
+        <strong>SMOTE-Tomek Links:</strong> Kết hợp tạo mẫu ảo (Oversampling) và
+        xóa các mẫu gây nhiễu ở biên giới giữa hai lớp (Undersampling). Điều này
+        giúp đường biên phân loại của các mô hình như SVM hoặc KNN trở nên
+        &quot;sạch&quot; hơn.
+      </li>
+      <li>
+        <strong>Cost-sensitive Learning:</strong> Thay vì thay đổi dữ liệu, hãy
+        gán &quot;hình phạt&quot; nặng hơn cho mô hình khi dự đoán sai lớp Bất
+        thường (Nhãn 1).
+      </li>
+    </ul>
+    <h2
+      id="5-tăng-cường-dữ-liệu-bằng-dịch-chuyển-phân-phối-distribution-shifting"
+    >
+      5. Tăng cường dữ liệu bằng &quot;Dịch chuyển phân phối&quot; (Distribution
+      Shifting)
+    </h2>
+    <p>Nếu tập dữ liệu nhỏ, bạn có thể áp dụng các kỹ thuật mô phỏng nhiễu:</p>
+    <ul>
+      <li>
+        <strong>Thêm nhiễu Gaussian nhẹ</strong> vào các đặc trưng Nhóm B để mô
+        hình trở nên bền bỉ hơn (robust) với các sai số đo đạc nhỏ của thiết bị.
+      </li>
+      <li>
+        <strong>Chuẩn hóa theo Staining Protocol:</strong> Nếu bạn phát hiện
+        <code>staining_protocol</code> ảnh hưởng đến <code>mean_r, g, b</code>,
+        hãy thực hiện <strong>Group-wise Scaling</strong> (chuẩn hóa riêng biệt
+        cho từng nhóm quy trình nhuộm) để đưa tất cả về cùng một không gian màu
+        sắc tham chiếu.
+      </li>
+    </ul>
+    <p><a href="detail_5.html">Chi tiết</a></p>
+    <hr />
+  </body>
+</html>

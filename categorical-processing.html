@@ -1,0 +1,590 @@
+<!doctype html>
+<html>
+  <head>
+    <title>categorical-processing.md</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+
+    <style>
+      /* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+      /*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+      body {
+        font-family: var(
+          --vscode-markdown-font-family,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe WPC",
+          "Segoe UI",
+          "Ubuntu",
+          "Droid Sans",
+          sans-serif
+        );
+        font-size: var(--vscode-markdown-font-size, 14px);
+        padding: 0 26px;
+        line-height: var(--vscode-markdown-line-height, 22px);
+        word-wrap: break-word;
+      }
+
+      #code-csp-warning {
+        position: fixed;
+        top: 0;
+        right: 0;
+        color: white;
+        margin: 16px;
+        text-align: center;
+        font-size: 12px;
+        font-family: sans-serif;
+        background-color: #444444;
+        cursor: pointer;
+        padding: 6px;
+        box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.25);
+      }
+
+      #code-csp-warning:hover {
+        text-decoration: none;
+        background-color: #007acc;
+        box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.25);
+      }
+
+      body.scrollBeyondLastLine {
+        margin-bottom: calc(100vh - 22px);
+      }
+
+      body.showEditorSelection .code-line {
+        position: relative;
+      }
+
+      body.showEditorSelection .code-active-line:before,
+      body.showEditorSelection .code-line:hover:before {
+        content: "";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: -12px;
+        height: 100%;
+      }
+
+      body.showEditorSelection li.code-active-line:before,
+      body.showEditorSelection li.code-line:hover:before {
+        left: -30px;
+      }
+
+      .vscode-light.showEditorSelection .code-active-line:before {
+        border-left: 3px solid rgba(0, 0, 0, 0.15);
+      }
+
+      .vscode-light.showEditorSelection .code-line:hover:before {
+        border-left: 3px solid rgba(0, 0, 0, 0.4);
+      }
+
+      .vscode-light.showEditorSelection .code-line .code-line:hover:before {
+        border-left: none;
+      }
+
+      .vscode-dark.showEditorSelection .code-active-line:before {
+        border-left: 3px solid rgba(255, 255, 255, 0.4);
+      }
+
+      .vscode-dark.showEditorSelection .code-line:hover:before {
+        border-left: 3px solid rgba(255, 255, 255, 0.6);
+      }
+
+      .vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+        border-left: none;
+      }
+
+      .vscode-high-contrast.showEditorSelection .code-active-line:before {
+        border-left: 3px solid rgba(255, 160, 0, 0.7);
+      }
+
+      .vscode-high-contrast.showEditorSelection .code-line:hover:before {
+        border-left: 3px solid rgba(255, 160, 0, 1);
+      }
+
+      .vscode-high-contrast.showEditorSelection
+        .code-line
+        .code-line:hover:before {
+        border-left: none;
+      }
+
+      img {
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      a {
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      a:focus,
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: 1px solid -webkit-focus-ring-color;
+        outline-offset: -1px;
+      }
+
+      hr {
+        border: 0;
+        height: 2px;
+        border-bottom: 2px solid;
+      }
+
+      h1 {
+        padding-bottom: 0.3em;
+        line-height: 1.2;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-weight: normal;
+      }
+
+      table {
+        border-collapse: collapse;
+      }
+
+      table > thead > tr > th {
+        text-align: left;
+        border-bottom: 1px solid;
+      }
+
+      table > thead > tr > th,
+      table > thead > tr > td,
+      table > tbody > tr > th,
+      table > tbody > tr > td {
+        padding: 5px 10px;
+      }
+
+      table > tbody > tr + tr > td {
+        border-top: 1px solid;
+      }
+
+      blockquote {
+        margin: 0 7px 0 5px;
+        padding: 0 16px 0 10px;
+        border-left-width: 5px;
+        border-left-style: solid;
+      }
+
+      code {
+        font-family:
+          Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace,
+          "Droid Sans Fallback";
+        font-size: 1em;
+        line-height: 1.357em;
+      }
+
+      body.wordWrap pre {
+        white-space: pre-wrap;
+      }
+
+      pre:not(.hljs),
+      pre.hljs code > div {
+        padding: 16px;
+        border-radius: 3px;
+        overflow: auto;
+      }
+
+      pre code {
+        color: var(--vscode-editor-foreground);
+        tab-size: 4;
+      }
+
+      /** Theming */
+
+      .vscode-light pre {
+        background-color: rgba(220, 220, 220, 0.4);
+      }
+
+      .vscode-dark pre {
+        background-color: rgba(10, 10, 10, 0.4);
+      }
+
+      .vscode-high-contrast pre {
+        background-color: rgb(0, 0, 0);
+      }
+
+      .vscode-high-contrast h1 {
+        border-color: rgb(0, 0, 0);
+      }
+
+      .vscode-light table > thead > tr > th {
+        border-color: rgba(0, 0, 0, 0.69);
+      }
+
+      .vscode-dark table > thead > tr > th {
+        border-color: rgba(255, 255, 255, 0.69);
+      }
+
+      .vscode-light h1,
+      .vscode-light hr,
+      .vscode-light table > tbody > tr + tr > td {
+        border-color: rgba(0, 0, 0, 0.18);
+      }
+
+      .vscode-dark h1,
+      .vscode-dark hr,
+      .vscode-dark table > tbody > tr + tr > td {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+    </style>
+
+    <style>
+      /* Tomorrow Theme */
+      /* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+      /* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+      /* Tomorrow Comment */
+      .hljs-comment,
+      .hljs-quote {
+        color: #8e908c;
+      }
+
+      /* Tomorrow Red */
+      .hljs-variable,
+      .hljs-template-variable,
+      .hljs-tag,
+      .hljs-name,
+      .hljs-selector-id,
+      .hljs-selector-class,
+      .hljs-regexp,
+      .hljs-deletion {
+        color: #c82829;
+      }
+
+      /* Tomorrow Orange */
+      .hljs-number,
+      .hljs-built_in,
+      .hljs-builtin-name,
+      .hljs-literal,
+      .hljs-type,
+      .hljs-params,
+      .hljs-meta,
+      .hljs-link {
+        color: #f5871f;
+      }
+
+      /* Tomorrow Yellow */
+      .hljs-attribute {
+        color: #eab700;
+      }
+
+      /* Tomorrow Green */
+      .hljs-string,
+      .hljs-symbol,
+      .hljs-bullet,
+      .hljs-addition {
+        color: #718c00;
+      }
+
+      /* Tomorrow Blue */
+      .hljs-title,
+      .hljs-section {
+        color: #4271ae;
+      }
+
+      /* Tomorrow Purple */
+      .hljs-keyword,
+      .hljs-selector-tag {
+        color: #8959a8;
+      }
+
+      .hljs {
+        display: block;
+        overflow-x: auto;
+        color: #4d4d4c;
+        padding: 0.5em;
+      }
+
+      .hljs-emphasis {
+        font-style: italic;
+      }
+
+      .hljs-strong {
+        font-weight: bold;
+      }
+    </style>
+
+    <style>
+      /*
+ * Markdown PDF CSS
+ */
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu",
+          "Droid Sans", sans-serif, "Meiryo";
+        padding: 0 12px;
+      }
+
+      pre {
+        background-color: #f8f8f8;
+        border: 1px solid #cccccc;
+        border-radius: 3px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
+      }
+
+      pre:not(.hljs) {
+        padding: 23px;
+        line-height: 19px;
+      }
+
+      blockquote {
+        background: rgba(127, 127, 127, 0.1);
+        border-color: rgba(0, 122, 204, 0.5);
+      }
+
+      .emoji {
+        height: 1.4em;
+      }
+
+      code {
+        font-size: 14px;
+        line-height: 19px;
+      }
+
+      /* for inline code */
+      :not(pre):not(.hljs) > code {
+        color: #c9ae75; /* Change the old color so it seems less like an error */
+        font-size: inherit;
+      }
+
+      /* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+      .page {
+        page-break-after: always;
+      }
+    </style>
+
+    <script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+  </head>
+  <body>
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme:
+          document.body.classList.contains("vscode-dark") ||
+          document.body.classList.contains("vscode-high-contrast")
+            ? "dark"
+            : "default",
+      });
+    </script>
+    <h2 id="1-nhóm-biến-có-ý-nghĩa-thống-kê-cao-p--005">
+      1. Nhóm Biến Có Ý Nghĩa Thống Kê Cao ($p &lt; 0.05$)
+    </h2>
+    <p>
+      Đây là những biến có mối liên hệ mật thiết với việc tế bào đó là Bình
+      thường hay Bất thường.
+    </p>
+    <h3 id="a-cell_type-và-disease_category-p--00">
+      a. <code>cell_type</code> và <code>disease_category</code> ($p = 0.0$)
+    </h3>
+    <ul>
+      <li>
+        <strong>Phân tích:</strong> Đây là những biến mang thông tin sinh học
+        cốt lõi. Tuy nhiên, nhìn vào biểu đồ, <code>cell_type</code> có rất
+        nhiều nhóm nhỏ (cardinality cao) và một số nhóm có tỷ lệ cực thấp (như
+        <code>Artefact</code>, <code>Smudge Cell</code>).
+      </li>
+      <li>
+        <strong>Cảnh báo Data Leakage:</strong> Biến
+        <code>disease_category</code> chứa các giá trị như
+        &quot;Normal_WBC&quot;, &quot;Leukemia&quot;, &quot;Anemia&quot;. Nếu
+        bạn dùng biến này để dự đoán <code>anomaly_label</code>, mô hình sẽ đạt
+        độ chính xác 100% một cách vô nghĩa (vì &quot;Normal&quot; chắc chắn là
+        nhãn 0, &quot;Leukemia&quot; chắc chắn là nhãn 1).
+      </li>
+      <li>
+        <strong>Hướng xử lý:</strong>
+        <ul>
+          <li>
+            <strong><code>disease_category</code>:</strong>
+            <strong>Loại bỏ (Drop)</strong> khỏi tập huấn luyện để tránh rò rỉ
+            dữ liệu, hoặc chỉ dùng để phân tích hậu kiểm.
+          </li>
+          <li>
+            <strong><code>cell_type</code>:</strong> Sử dụng
+            <strong>Target Encoding</strong> (mã hóa theo trung bình nhãn) hoặc
+            <strong>One-Hot Encoding</strong>. Với các nhóm có tỷ lệ &lt; 2%
+            (như <code>Sickle_Cell</code>, <code>Spherocyte</code>), hãy gom
+            chúng vào một nhóm chung gọi là
+            <strong>&quot;Other_Rare_Types&quot;</strong> để tránh Overfitting.
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <h3 id="b-staining_protocol-p--0026">
+      b. <code>staining_protocol</code> ($p = 0.026$)
+    </h3>
+    <ul>
+      <li>
+        <strong>Phân tích:</strong> Giá trị $p &lt; 0.05$ cho thấy quy trình
+        nhuộm (Giemsa, Wright,...) có ảnh hưởng đến kết quả phân loại. Điều này
+        có thể do một số bệnh lý chỉ được phát hiện rõ dưới một loại nhuộm nhất
+        định.
+      </li>
+      <li>
+        <strong>Hướng xử lý:</strong> Sử dụng <strong>One-Hot Encoding</strong>.
+        Vì chỉ có 3 giá trị, việc này sẽ tạo thêm 3 cột binary đơn giản cho mô
+        hình.
+      </li>
+    </ul>
+    <hr />
+    <h2 id="2-nhóm-biến-không-có-ý-nghĩa-thống-kê-p--005">
+      2. Nhóm Biến Không Có Ý Nghĩa Thống Kê ($p &gt; 0.05$)
+    </h2>
+    <p>
+      Những biến này dường như độc lập với nhãn mục tiêu trong tập dữ liệu hiện
+      tại.
+    </p>
+    <h3 id="a-patient_age_group-p--0589-và-patient_sex-p--0376">
+      a. <code>patient_age_group</code> ($p = 0.589$) và
+      <code>patient_sex</code> ($p = 0.376$)
+    </h3>
+    <ul>
+      <li>
+        <strong>Phân tích:</strong> Giới tính và độ tuổi không trực tiếp quyết
+        định một tế bào đơn lẻ là bất thường hay không (trong ngữ cảnh bộ dữ
+        liệu này).
+      </li>
+      <li>
+        <strong>Hướng xử lý:</strong>
+        <ul>
+          <li>
+            <strong><code>patient_sex</code>:</strong> Có thể giữ lại bằng
+            <strong>One-Hot Encoding</strong> (vì chỉ có 2 giá trị M/F) để mô
+            hình có tính bao quát.
+          </li>
+          <li>
+            <strong><code>patient_age_group</code>:</strong> Vì đây là biến có
+            thứ tự (Pediatric &lt; Adult &lt; Elderly), bạn nên sử dụng
+            <strong>Ordinal Encoding</strong> (gán nhãn 1, 2, 3) thay vì
+            One-Hot.
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <h3 id="b-dataset_source-p--0520-và-microscope_model-p--0408">
+      b. <code>dataset_source</code> ($p = 0.520$) và
+      <code>microscope_model</code> ($p = 0.408$)
+    </h3>
+    <ul>
+      <li>
+        <strong>Phân tích:</strong> Đây là tin tốt! Việc $p$-value cao cho thấy
+        mô hình của bạn sẽ không bị &quot;thiên kiến&quot; (bias) bởi việc ảnh
+        đó chụp từ kính hiển vi nào hay nguồn dữ liệu nào. Điều này giúp mô hình
+        có khả năng tổng quát hóa tốt hơn.
+      </li>
+      <li>
+        <strong>Hướng xử lý:</strong>
+        <strong>Cân nhắc loại bỏ (Drop)</strong> cả hai biến này để giảm chiều
+        dữ liệu (Dimensionality Reduction), giúp mô hình tinh gọn và tập trung
+        hoàn toàn vào các đặc trưng hình thái tế bào.
+      </li>
+    </ul>
+    <hr />
+    <h2 id="3-tổng-kết-bảng-kế-hoạch-tiền-xử-lý-categorical">
+      3. Tổng kết bảng kế hoạch tiền xử lý Categorical
+    </h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align: left">Thuộc tính</th>
+          <th style="text-align: left">Tình trạng ($p$-value)</th>
+          <th style="text-align: left">Phương pháp mã hóa</th>
+          <th style="text-align: left">Hành động bổ sung</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align: left">
+            <strong><code>cell_type</code></strong>
+          </td>
+          <td style="text-align: left">0.0 (Rất mạnh)</td>
+          <td style="text-align: left">Target Encoding / OHE</td>
+          <td style="text-align: left">Gom nhóm các loại hiếm (&lt; 2%)</td>
+        </tr>
+        <tr>
+          <td style="text-align: left">
+            <strong><code>disease_category</code></strong>
+          </td>
+          <td style="text-align: left">0.0 (Rất mạnh)</td>
+          <td style="text-align: left"><strong>Drop</strong></td>
+          <td style="text-align: left">Tránh Data Leakage</td>
+        </tr>
+        <tr>
+          <td style="text-align: left">
+            <strong><code>staining_protocol</code></strong>
+          </td>
+          <td style="text-align: left">0.026 (Mạnh)</td>
+          <td style="text-align: left">One-Hot Encoding</td>
+          <td style="text-align: left">Giữ nguyên</td>
+        </tr>
+        <tr>
+          <td style="text-align: left">
+            <strong><code>patient_age_group</code></strong>
+          </td>
+          <td style="text-align: left">0.589 (Yếu)</td>
+          <td style="text-align: left">Ordinal Encoding</td>
+          <td style="text-align: left">Giữ lại làm biến kiểm soát</td>
+        </tr>
+        <tr>
+          <td style="text-align: left">
+            <strong><code>patient_sex</code></strong>
+          </td>
+          <td style="text-align: left">0.376 (Yếu)</td>
+          <td style="text-align: left">One-Hot Encoding</td>
+          <td style="text-align: left">Giữ lại làm biến kiểm soát</td>
+        </tr>
+        <tr>
+          <td style="text-align: left">
+            <strong><code>dataset_source</code></strong>
+          </td>
+          <td style="text-align: left">0.520 (Rất yếu)</td>
+          <td style="text-align: left"><strong>Drop</strong></td>
+          <td style="text-align: left">Giảm nhiễu hệ thống</td>
+        </tr>
+        <tr>
+          <td style="text-align: left">
+            <strong><code>microscope_model</code></strong>
+          </td>
+          <td style="text-align: left">0.408 (Rất yếu)</td>
+          <td style="text-align: left"><strong>Drop</strong></td>
+          <td style="text-align: left">Giảm nhiễu hệ thống</td>
+        </tr>
+      </tbody>
+    </table>
+    <hr />
+    <h2 id="4-tối-ưu-hóa-chuyên-sâu-sự-kết-hợp-categorical--numerical">
+      4. Tối ưu hóa chuyên sâu: Sự kết hợp Categorical &amp; Numerical
+    </h2>
+    <p>Để nâng cao hiệu quả, team bạn có thể thực hiện thêm:</p>
+    <ol>
+      <li>
+        <strong>Group-wise Scaling:</strong> Thay vì chuẩn hóa
+        <code>cell_area_px</code> cho toàn bộ dữ liệu, hãy chuẩn hóa theo từng
+        <code>cell_type</code>. (Ví dụ: Một con Bạch cầu trung tính to là bình
+        thường, nhưng một con Hồng cầu to lại là bất thường).
+      </li>
+      <li>
+        <strong>Interaction Features:</strong> Tạo biến kết hợp như
+        <code>cell_type</code> + <code>staining_protocol</code> để xem một loại
+        tế bào dưới một loại nhuộm nhất định có bộc lộ đặc trưng tốt hơn không.
+      </li>
+    </ol>
+    <p><a href="detail_Categorical&amp;Numberical.html">Chi tiết</a></p>
+  </body>
+</html>

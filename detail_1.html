@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>detail_1.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<p>Để nâng cao hiệu quả mô hình, việc chỉ sử dụng các đặc trưng &quot;thô&quot; (raw features) thường không đủ. Trong huyết học (Hematology), các chuyên gia không nhìn vào từng con số đơn lẻ mà nhìn vào <strong>mối tương quan</strong> giữa chúng.</p>
+<p>Dưới đây là 5 hướng tạo đặc trưng mới (Feature Engineering) dựa trên kiến thức chuyên môn để giúp mô hình của bạn &quot;thông minh&quot; như một bác sĩ xét nghiệm:</p>
+<hr>
+<h2 id="1-chỉ-số-nc-ratio-nucleus-to-cytoplasm-ratio">1. Chỉ số N/C Ratio (Nucleus-to-Cytoplasm Ratio)</h2>
+<p>Đây là &quot;tiêu chuẩn vàng&quot; trong việc phân biệt tế bào lành tính và ác tính. Tế bào bất thường (như tế bào ung thư hoặc tế bào non) thường có nhân rất lớn chiếm gần hết diện tích tế bào.</p>
+<ul>
+<li><strong>Công thức:</strong>
+$$NC_Ratio = \frac{nucleus_area_pct}{100 - nucleus_area_pct}$$</li>
+<li><strong>Ý nghĩa:</strong> Nếu tỷ lệ này đột ngột tăng cao, đó là dấu hiệu mạnh mẽ của nhãn <code>1</code> (Bất thường). Bạn cũng có thể dùng <code>cytoplasm_ratio</code> để tính toán chính xác hơn phần diện tích còn lại.</li>
+</ul>
+<h2 id="2-chuẩn-hóa-đơn-vị-vật-lý-physical-units-normalization">2. Chuẩn hóa Đơn vị Vật lý (Physical Units Normalization)</h2>
+<p>Dữ liệu của bạn có các mức độ phóng đại khác nhau (40x, 60x, 100x). Một tế bào &quot;to&quot; ở 40x sẽ có số pixel khác hẳn một tế bào &quot;to&quot; ở 100x. Để mô hình không bị nhầm lẫn, bạn cần quy đổi về đơn vị thực tế ($\mu m$).</p>
+<ul>
+<li><strong>Cách làm:</strong> Tạo ra các đặc trưng &quot;thực&quot; thay vì dựa trên pixel.
+<ul>
+<li><code>true_cell_area = cell_area_px / (magnification_x^2)</code></li>
+<li><code>true_perimeter = perimeter_px / magnification_x</code></li>
+</ul>
+</li>
+<li><strong>Ý nghĩa:</strong> Giúp mô hình đồng nhất được kích thước tế bào trên mọi loại kính hiển vi và độ phóng đại.</li>
+</ul>
+<h2 id="3-chỉ-số-độ-phức-tạp-hình-dạng-shape-complexityform-factor">3. Chỉ số Độ phức tạp Hình dạng (Shape Complexity/Form Factor)</h2>
+<p>Tế bào bình thường thường có màng trơn tru và hình dáng ổn định. Tế bào bất thường thường có hình dạng kỳ dị, màng tế bào lồi lõm.</p>
+<ul>
+<li><strong>Công thức (Form Factor):</strong>
+$$Form_Factor = \frac{4\pi \times cell_area_px}{perimeter_px^2}$$</li>
+<li><strong>Ý nghĩa:</strong> Giá trị này càng gần <strong>1.0</strong>, tế bào càng tròn trịa hoàn hảo. Giá trị càng nhỏ, tế bào càng có hình dạng phức tạp hoặc màng tế bào bị biến dạng nặng (<code>membrane_smoothness</code> thấp).</li>
+</ul>
+<h2 id="4-đặc-trưng-màu-sắc-chuẩn-hóa-chromaticity-features">4. Đặc trưng Màu sắc chuẩn hóa (Chromaticity Features)</h2>
+<p>Cường độ sáng (<code>stain_intensity</code>) có thể thay đổi tùy vào ánh sáng lúc chụp, nhưng <strong>tỷ lệ màu</strong> thì ít thay đổi hơn.</p>
+<ul>
+<li><strong>Cách làm:</strong> Thay vì dùng <code>mean_r</code>, <code>mean_g</code>, <code>mean_b</code>, hãy tạo ra các biến tỷ lệ:
+<ul>
+<li>$R_Ratio = R / (R + G + B)$</li>
+<li>$G_Ratio = G / (R + G + B)$</li>
+<li>$B_Ratio = B / (R + G + B)$</li>
+</ul>
+</li>
+<li><strong>Ý nghĩa:</strong> Tế bào bắt màu kiềm (xanh đậm) hay ưa acid (hồng/đỏ) sẽ được thể hiện rõ ràng qua tỷ lệ này, loại bỏ được nhiễu do ánh sáng quá chói hoặc quá tối.</li>
+</ul>
+<h2 id="5-tương-quan-cá-thể---quần-thể-global-local-interaction">5. Tương quan Cá thể - Quần thể (Global-Local Interaction)</h2>
+<p>Một tế bào có đường kính 12$\mu m$ có thể là bình thường với người này nhưng là bất thường với người khác nếu các tế bào còn lại của họ đều rất nhỏ.</p>
+<ul>
+<li><strong>Cách làm:</strong> Tạo biến so sánh kích thước tế bào hiện tại với chỉ số trung bình của bệnh nhân đó (nếu có <code>patient_id</code>) hoặc với chỉ số <code>mcv_fl</code> (thể tích trung bình hồng cầu).
+<ul>
+<li><code>relative_size = cell_diameter_um / mcv_fl</code></li>
+</ul>
+</li>
+<li><strong>Ý nghĩa:</strong> Giúp mô hình hiểu được ngữ cảnh. Nếu một tế bào &quot;khổng lồ&quot; xuất hiện trong một mẫu máu có chỉ số MCV thấp, khả năng cao đó là một tế bào non (Blast) hoặc đại thực bào bất thường.</li>
+</ul>
+<hr>
+<h3 id="bảng-tóm-tắt-các-đặc-trưng-mới-cần-tạo">Bảng tóm tắt các đặc trưng mới cần tạo:</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Đặc trưng mới</th>
+<th style="text-align:left">Công thức/Nguồn</th>
+<th style="text-align:left">Nhắm tới nhóm biến</th>
+<th style="text-align:left">Mục tiêu phân loại</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>NC_Index</strong></td>
+<td style="text-align:left">Nucleus Area / Cytoplasm Area</td>
+<td style="text-align:left">Nhóm A</td>
+<td style="text-align:left">Phát hiện tế bào ác tính</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Real_Size</strong></td>
+<td style="text-align:left">Area / (Mag^2)</td>
+<td style="text-align:left">Nhóm B</td>
+<td style="text-align:left">Đồng nhất dữ liệu thiết bị</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Compactness</strong></td>
+<td style="text-align:left">Area / (Perimeter^2)</td>
+<td style="text-align:left">Nhóm A + B</td>
+<td style="text-align:left">Phát hiện biến dạng màng</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Color_Shift</strong></td>
+<td style="text-align:left">R / (R+G+B)</td>
+<td style="text-align:left">Nhóm C</td>
+<td style="text-align:left">Phân loại loại tế bào (Dòng bạch cầu)</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Size_Anomaly</strong></td>
+<td style="text-align:left">Diameter / MCV</td>
+<td style="text-align:left">Nhóm B + C</td>
+<td style="text-align:left">Phát hiện sự bất thường kích thước</td>
+</tr>
+</tbody>
+</table>
+<p>Việc tạo thêm khoảng 5-7 đặc trưng &quot;thông minh&quot; này thường giúp tăng độ chính xác (Accuracy) và F1-score của mô hình thêm <strong>3% - 8%</strong> so với việc chỉ dùng dữ liệu thô.</p>
+
+</body>
+</html>
