@@ -205,3 +205,75 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ==========================================
+# 1. DỮ LIỆU (DATA) - TUYỆT ĐỐI KHÔNG PUSH DỮ LIỆU LỚN LÊN GIT
+# ==========================================
+# Loại bỏ các file csv, excel, npy, npz, parquet trong thư mục data
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+*.csv
+*.xlsx
+*.parquet
+*.npy
+*.npz
+
+# ==========================================
+# 2. MÔ HÌNH (MODELS) - FILE SERIALIZED CỦA SCIKIT-LEARN
+# ==========================================
+# Loại bỏ các file mô hình đã huấn luyện (.pkl, .joblib, .h5)
+models/
+*.pkl
+*.joblib
+*.h5
+*.onnx
+
+# ==========================================
+# 3. MÔI TRƯỜNG VIRTUAL ENV (ENVIRONMENTS)
+# ==========================================
+.venv/
+venv/
+env/
+bin/
+lib/
+share/
+Include/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==========================================
+# 4. PYTHON & JUPYTER NOTEBOOKS
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+.pytest_cache/
+.mypy_cache/
+
+# ==========================================
+# 5. LOGS & VISUALIZATION (MLFLOW, W&B, TENSORBOARD)
+# ==========================================
+logs/
+plots/
+reports/
+mlruns/
+wandb/
+.tensorboard/
+
+# ==========================================
+# 6. CẤU HÌNH CÁ NHÂN (LOCAL CONFIGS)
+# ==========================================
+# Nếu team có file config chứa pass/token hoặc config local thì bỏ qua
+.env
+config_local.yml
+credentials.json
+
+# ==========================================
+# 7. OS SPECIFIC FILES
+# ==========================================
+.DS_Store
+Thumbs.db
