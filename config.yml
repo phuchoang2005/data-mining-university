@@ -1,0 +1,741 @@
+# =============================================================================
+# Global Configuration for Cell Classification Pre-processing Pipeline
+# =============================================================================
+# This config is designed for a 4-member team collaboration
+# Each member has specific responsibilities outlined below
+# =============================================================================
+
+project:
+  name: "Cell_Classification_Pipeline"
+  version: "1.0.0"
+  description: "Pre-processing pipeline for blood cell anomaly classification"
+  
+# =============================================================================
+# TEAM ASSIGNMENTS
+# =============================================================================
+# Team Structure: 4 members total (1 Leader + 3 Pre-processing Members)
+# =============================================================================
+team:
+  leader:
+    role: "Team Leader & Model Training Lead"
+    responsibilities:
+      - "Coordinate team workflow"
+      - "Train classification models"
+      - "Evaluate model performance"
+      - "Final model selection and tuning"
+    tasks_file: "model_training.md"
+    excluded_from:
+      - "preprocessing"
+    
+  member_1:
+    role: "Numeric Processing Lead"
+    responsibilities:
+      - "Process 4 numeric feature groups (A, B, C, D)"
+      - "Handle outliers (Capping/Trimming)"
+      - "Apply transformations and scaling"
+      - "Physical units normalization"
+    tasks_file: "numeric-processing.md"
+    input: "raw data"
+    output: "numeric_processed.csv"
+    
+  member_2:
+    role: "Categorical & Feature Engineering Lead"
+    responsibilities:
+      - "Encode categorical variables"
+      - "Handle high cardinality features"
+      - "Create domain-based features (N/C Ratio, Form Factor, etc.)"
+      - "Handle multi-modality with clustering"
+      - "Data augmentation"
+    tasks_file: "categorical-processing.md"
+    input: "numeric_processed.csv"
+    output: "feature_engineered.csv"
+    
+  member_3:
+    role: "Feature Selection & Validation Lead"
+    responsibilities:
+      - "Remove redundant features (VIF, Correlation)"
+      - "Apply Mutual Information & RFE"
+      - "Handle class imbalance"
+      - "Final validation with cross-validation"
+      - "Prepare model-ready dataset"
+    tasks_file: "numeric/detail_3.md"
+    input: "feature_engineered.csv"
+    output: "model_input.csv"
+
+# =============================================================================
+# DATA CONFIGURATION
+# =============================================================================
+data:
+  input:
+    path: "data/raw/cell_data.csv"
+    target_column: "anomaly_label"
+    
+  output:
+    path: "data/processed/"
+    train_test_split:
+      method: "stratified_shuffle_split"
+      test_size: 0.2
+      random_state: 42
+
+# =============================================================================
+# NUMERIC FEATURE GROUPS (Member 1)
+# =============================================================================
+numeric_groups:
+  group_a:
+    name: "Nhóm A: Hình thái & Bệnh lý (Tín hiệu Vàng)"
+    description: "High separability, skewed distribution with outliers"
+    features:
+      - "eccentricity"
+      - "lobularity_score"
+      - "chromatin_density"
+      - "nucleus_area_pct"
+      - "circularity"
+    
+    processing:
+      outlier_strategy: "capping"
+      capping_method: "winsorization"
+      capping_percentiles: [1, 99]
+      
+      transformation: "power_transformer"
+      transformer_method: "yeo_johnson"
+      
+      scaling: "robust_scaler"
+      reason: "Protect outlier characteristics"
+    
+    priority: "critical"
+    
+  group_b:
+    name: "Nhóm B: Hình thái học (Cần xử lý Skewness)"
+    description: "Average separability, multi-modal distribution"
+    features:
+      - "cell_diameter_um"
+      - "cell_area_px"
+      - "perimeter_px"
+      - "cytoplasm_ratio"
+      - "membrane_smoothness"
+      - "granularity_score"
+    
+    processing:
+      outlier_strategy: "capping"
+      
+      transformation: "quantile_transformer"
+      output_distribution: "uniform"
+      # Alternative: keep original multi-modal
+      
+      scaling: "standard_scaler"
+    
+    priority: "high"
+    
+  group_c:
+    name: "Nhóm C: Chỉ số Huyết học & Nhiễu kỹ thuật"
+    description: "Poor separability, symmetric distribution"
+    features:
+      - "wbc_count_per_ul"
+      - "rbc_count_millions_per_ul"
+      - "hemoglobin_g_dl"
+      - "hematocrit_pct"
+      - "platelet_count_per_ul"
+      - "mcv_fl"
+      - "mchc_g_dl"
+      - "mean_r"
+      - "mean_g"
+      - "mean_b"
+      - "stain_intensity"
+    
+    processing:
+      outlier_strategy: "trimming"
+      trimming_method: "iqr"
+      iqr_multiplier: 1.5
+      reason: "Remove measurement errors and device noise"
+      
+      transformation: "none"
+      
+      scaling: "min_max_scaler"
+    
+    priority: "low"
+    recommendation: "Consider feature selection to remove low-importance features"
+    
+  group_d:
+    name: "Nhóm D: Điểm tin cậy & Thuật toán"
+    description: "Special handling required"
+    features:
+      - "labeller_confidence_score"
+      - "cytodiffusion_classification_confidence"
+      - "cytodiffusion_anomaly_score"
+    
+    processing:
+      cytodiffusion_anomaly_score:
+        action: "drop"
+        reason: "Data leakage - prevents model from 'memorizing' results"
+        
+      labeller_confidence_score:
+        action: "filter_rows"
+        threshold: 0.5
+        reason: "Remove low-confidence labeled samples from training"
+        
+      cytodiffusion_classification_confidence:
+        action: "keep"
+        reason: "May provide useful context"
+
+# =============================================================================
+# CATEGORICAL FEATURE PROCESSING (Member 2)
+# =============================================================================
+categorical_features:
+  cell_type:
+    processing: "target_encoding"
+    # Alternative: one_hot_encoding
+    special_handling:
+      - "Group rare types (< 2%) into 'Other_Rare_Types'"
+      - "Use smoothing for high cardinality"
+    p_value: 0.0
+    action: "keep"
+    
+  disease_category:
+    processing: "drop"
+    reason: "Data leakage - contains target information"
+    p_value: 0.0
+    action: "drop"
+    
+  staining_protocol:
+    processing: "one_hot_encoding"
+    # Only 3 values: Giemsa, Wright, etc.
+    p_value: 0.026
+    action: "keep"
+    
+  patient_age_group:
+    processing: "ordinal_encoding"
+    # Order: Pediatric < Adult < Elderly
+    mapping:
+      Pediatric: 1
+      Adult: 2
+      Elderly: 3
+    p_value: 0.589
+    action: "keep_as_control"
+    
+  patient_sex:
+    processing: "one_hot_encoding"
+    # Only 2 values: M/F
+    p_value: 0.376
+    action: "keep_as_control"
+    
+  dataset_source:
+    processing: "drop"
+    reason: "No statistical significance - reduce noise"
+    p_value: 0.520
+    action: "drop"
+    
+  microscope_model:
+    processing: "drop"
+    reason: "No statistical significance - reduce noise"
+    p_value: 0.408
+    action: "drop"
+
+# =============================================================================
+# FEATURE ENGINEERING (Member 2)
+# =============================================================================
+feature_engineering:
+  # 1. N/C Ratio (Nucleus-to-Cytoplasm Ratio)
+  nc_ratio:
+    formula: "nucleus_area_pct / (100 - nucleus_area_pct)"
+    target_group: "group_a"
+    description: "Gold standard for malignant cell detection"
+    
+  # 2. Physical Units Normalization
+  physical_units:
+    - feature: "true_cell_area"
+      formula: "cell_area_px / (magnification_x ^ 2)"
+    - feature: "true_perimeter"
+      formula: "perimeter_px / magnification_x"
+    - description: "Normalize across different microscope magnifications"
+    
+  # 3. Shape Complexity (Form Factor)
+  form_factor:
+    formula: "(4 * pi * cell_area_px) / (perimeter_px ^ 2)"
+    interpretation: "1.0 = perfect circle, lower = more complex shape"
+    target_group: "group_a + group_b"
+    
+  # 4. Chromaticity Features (using Group C color features)
+  chromaticity:
+    - feature: "r_ratio"
+      formula: "mean_r / (mean_r + mean_g + mean_b)"
+    - feature: "g_ratio"
+      formula: "mean_g / (mean_r + mean_g + mean_b)"
+    - feature: "b_ratio"
+      formula: "mean_b / (mean_r + mean_g + mean_b)"
+    - description: "Color ratios independent of lighting conditions"
+    - source_features: ["mean_r", "mean_g", "mean_b"]
+    - target_group: "group_c"
+    
+  # 5. Global-Local Interaction
+  size_anomaly:
+    formula: "cell_diameter_um / mcv_fl"
+    description: "Compare cell size to patient's average red blood cell volume"
+    source_features: ["cell_diameter_um", "mcv_fl"]
+    target_group: "group_b + group_c"
+
+# =============================================================================
+# CLUSTERING FOR MULTI-MODALITY (Member 2)
+# =============================================================================
+clustering:
+  algorithm: "GMM"  # Gaussian Mixture Models (recommended)
+  # Alternative: K-Means
+  
+  features_for_clustering:
+    - "cell_diameter_um"
+    - "nucleus_area_pct"
+    - "chromatin_density"
+    - "cell_area_px"
+    - "cytoplasm_ratio"
+    - "granularity_score"
+  
+  optimal_clusters:
+    method: "elbow_method"  # Or silhouette_score
+    expected_range: [3, 5]  # Typical for blood cell types
+  
+  output:
+    - "cell_subpopulation"  # Cluster ID as new feature
+  
+  usage:
+    - "Feature Augmentation: One-Hot encode cluster IDs"
+    - "Cluster-specific Scaling: Scale within each cluster"
+
+# =============================================================================
+# DATA AUGMENTATION (Member 2)
+# =============================================================================
+data_augmentation:
+  # 1. Gaussian Noise Injection
+  gaussian_noise:
+    target_groups: ["group_b", "group_c"]
+    target_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b"]
+    sigma_percentage: 0.01  # 1-2% of standard deviation
+    description: "Simulate measurement errors"
+    
+  # 2. Staining Protocol Shifting
+  protocol_shifting:
+    target_features: ["mean_r", "mean_g", "mean_b", "stain_intensity"]
+    method: "group_wise_normalization"
+    description: "Normalize color across different staining protocols"
+    
+  # 3. SMOTE for Imbalance
+  smote:
+    method: "SMOTE-Tomek Links"
+    description: "Oversample minority + remove boundary noise"
+    
+  # 4. Covariate Shift Simulation
+  covariate_shift:
+    target_groups: ["group_c"]
+    target_features: ["wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl", "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl"]
+    factor_range: [0.98, 1.02]
+    description: "Simulate variation between different hospitals"
+
+# =============================================================================
+# FEATURE SELECTION (Member 3)
+# =============================================================================
+feature_selection:
+  # 1. Multicollinearity Check
+  multicollinearity:
+    method: "VIF"  # Variance Inflation Factor
+    threshold: 10
+    action: "remove_high_vif"
+    
+  correlation_filter:
+    method: "correlation_matrix"
+    threshold: 0.9
+    action: "remove_one_of_pair"
+    
+  # 2. Mutual Information
+  mutual_info:
+    method: "mutual_info_classif"
+    target: "anomaly_label"
+    action: "select_k_best"
+    k_range: [15, 20]
+    
+  # 3. Recursive Feature Elimination
+  rfe:
+    estimator: "RandomForest"  # Or XGBoost
+    step: 1
+    cv_folds: 5
+    action: "find_optimal_features"
+    expected_optimal: [10, 12]
+    
+  # 4. Permutation Importance
+  permutation_importance:
+    method: "shap"
+    description: "Explain model decisions post-training"
+
+# =============================================================================
+# CLASS IMBALANCE HANDLING (Member 3)
+# =============================================================================
+imbalance_handling:
+  current_skewness: 0.77
+  
+  strategies:
+    - method: "stratified_split"
+      description: "Maintain class ratio in train/test split"
+      
+    - method: "SMOTE-Tomek"
+      description: "Combine oversampling + undersampling"
+      
+    - method: "cost_sensitive_learning"
+      description: "Penalize minority class misclassification more"
+
+# =============================================================================
+# VALIDATION WORKFLOW
+# =============================================================================
+validation:
+  cross_validation:
+    method: "StratifiedKFold"
+    n_splits: 5
+    shuffle: true
+    random_state: 42
+    
+  metrics:
+    - "accuracy"
+    - "f1_score"
+    - "precision"
+    - "recall"
+    - "roc_auc"
+    
+  post_training:
+    - "SHAP Summary Plot"
+    - "Permutation Importance"
+    - "Confusion Matrix Analysis"
+
+# =============================================================================
+# PIPELINE EXECUTION ORDER
+# =============================================================================
+# Pre-processing: Members 1-3 → Leader: Training & Evaluation
+# =============================================================================
+pipeline_order:
+  # -------------------------------------------------------------------------
+  # MEMBER 1: Numeric Processing
+  # -------------------------------------------------------------------------
+  step_1:
+    member: 1
+    task: "Load raw data and validate"
+    description: "Read CSV, check data types, identify missing values"
+    output: "data/raw/validated.csv"
+    
+  step_2:
+    member: 1
+    task: "Process Group A (Pathology signals) - outliers, capping, Yeo-Johnson, RobustScaler"
+    description: "Handle skewed distribution with outliers, keep as pathological samples"
+    input_features: ["eccentricity", "lobularity_score", "chromatin_density", "nucleus_area_pct", "circularity"]
+    output: "data/intermediate/group_a_processed.csv"
+    
+  step_3:
+    member: 1
+    task: "Process Group B (Multi-modal) - capping, QuantileTransformer, StandardScaler"
+    description: "Handle multi-modal distribution, apply QuantileTransformer for uniform distribution"
+    input_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score"]
+    output: "data/intermediate/group_b_processed.csv"
+    
+  step_4:
+    member: 1
+    task: "Process Group C (Hematology/Noise) - trimming, Min-Max Scaler"
+    description: "Remove outliers (measurement errors), reduce noise features"
+    input_features: ["wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl", "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl", "mean_r", "mean_g", "mean_b", "stain_intensity"]
+    output: "data/intermediate/group_c_processed.csv"
+    
+  step_5:
+    member: 1
+    task: "Process Group D (Confidence scores) - drop anomaly_score, filter by confidence"
+    description: "Remove data leakage, filter low-confidence samples"
+    input_features: ["labeller_confidence_score", "cytodiffusion_classification_confidence", "cytodiffusion_anomaly_score"]
+    output: "data/intermediate/group_d_processed.csv"
+    
+  step_6:
+    member: 1
+    task: "Physical units normalization"
+    description: "Convert pixel-based features to real units based on magnification"
+    output: "data/intermediate/numeric_processed.csv"
+    
+  # -------------------------------------------------------------------------
+  # MEMBER 2: Categorical & Feature Engineering
+  # -------------------------------------------------------------------------
+  step_7:
+    member: 2
+    task: "Encode categorical variables"
+    description: "One-Hot/Target/Ordinal encoding, drop leakage (disease_category)"
+    input: "data/intermediate/numeric_processed.csv"
+    output: "data/intermediate/categorical_encoded.csv"
+    
+  step_8:
+    member: 2
+    task: "Create domain-based features"
+    description: "N/C Ratio, Form Factor, Chromaticity, Size Anomaly"
+    output: "data/intermediate/feature_engineered.csv"
+    
+  step_9:
+    member: 2
+    task: "Apply clustering (GMM) for multi-modality"
+    description: "Create cell subpopulation labels, add as features"
+    output: "data/intermediate/clustering_added.csv"
+    
+  step_10:
+    member: 2
+    task: "Apply data augmentation"
+    description: "Gaussian noise, Protocol shifting, SMOTE-Tomek"
+    output: "data/intermediate/augmented.csv"
+    
+  # -------------------------------------------------------------------------
+  # MEMBER 3: Feature Selection & Validation
+  # -------------------------------------------------------------------------
+  step_11:
+    member: 3
+    task: "Remove redundant features (VIF, Correlation > 0.9)"
+    description: "Check multicollinearity, remove highly correlated pairs"
+    input: "data/intermediate/augmented.csv"
+    output: "data/intermediate/feature_reduced.csv"
+    
+  step_12:
+    member: 3
+    task: "Apply feature selection (Mutual Information, RFE)"
+    description: "Select top features based on information gain"
+    output: "data/intermediate/feature_selected.csv"
+    
+  step_13:
+    member: 3
+    task: "Handle class imbalance"
+    description: "Apply SMOTE-Tomek, stratified train/test split"
+    output: "data/intermediate/imbalance_handled.csv"
+    
+  step_14:
+    member: 3
+    task: "Final validation and save processed data"
+    description: "Cross-validation check, save model-ready dataset"
+    output: "data/processed/model_input.csv"
+    
+  # -------------------------------------------------------------------------
+  # LEADER: Model Training & Evaluation
+  # -------------------------------------------------------------------------
+  step_15:
+    member: "leader"
+    task: "Train 8 classification models with hyperparameter tuning"
+    description: "Decision Tree, Naive Bayes, KNN, Logistic Regression, Random Forest, XGBoost, SVM, MLP"
+    input: "data/processed/model_input.csv"
+    output: "models/saved/"
+    
+  step_16:
+    member: "leader"
+    task: "Evaluate models and select best"
+    description: "Compare metrics (F1, ROC-AUC), generate reports"
+    output: "models/best_model.pkl"
+
+# =============================================================================
+# MODEL TRAINING CONFIGURATION (Leader)
+# =============================================================================
+# 8 Models to train and evaluate
+# =============================================================================
+model_training:
+  # Input from pre-processed data
+  input:
+    processed_data: "data/processed/model_input.csv"
+    target_column: "anomaly_label"
+    
+  # Models to evaluate (8 total)
+  models:
+    # 1. Decision Tree
+    - name: "Decision Tree"
+      type: "tree"
+      params:
+        criterion: "gini"
+        max_depth: 10
+        min_samples_split: 5
+        min_samples_leaf: 2
+        class_weight: "balanced"
+      hyperparams:
+        max_depth: [5, 10, 15, None]
+        min_samples_split: [2, 5, 10]
+        
+    # 2. Naive Bayes
+    - name: "Naive Bayes"
+      type: "probabilistic"
+      params:
+        variant: "GaussianNB"
+      # Note: Requires normal distribution - ensure Yeo-Johnson transform applied
+      hyperparams:
+        var_smoothing: [1e-9, 1e-8, 1e-7, 1e-6]
+        
+    # 3. K-Nearest Neighbors (KNN)
+    - name: "K-Nearest Neighbors"
+      type: "distance-based"
+      params:
+        n_neighbors: 5
+        weights: "distance"
+        metric: "minkowski"
+        p: 2
+      hyperparams:
+        n_neighbors: [3, 5, 7, 9, 11]
+        weights: ["uniform", "distance"]
+        metric: ["euclidean", "manhattan", "minkowski"]
+        
+    # 4. Logistic Regression
+    - name: "Logistic Regression"
+      type: "linear"
+      params:
+        penalty: "l2"
+        C: 1.0
+        solver: "lbfgs"
+        max_iter: 1000
+        class_weight: "balanced"
+      hyperparams:
+        C: [0.01, 0.1, 1, 10, 100]
+        penalty: ["l1", "l2"]
+        
+    # 5. Random Forest
+    - name: "Random Forest"
+      type: "ensemble"
+      params:
+        n_estimators: 100
+        max_depth: 10
+        min_samples_split: 5
+        min_samples_leaf: 2
+        class_weight: "balanced"
+        random_state: 42
+      hyperparams:
+        n_estimators: [50, 100, 200]
+        max_depth: [5, 10, 15, None]
+        min_samples_split: [2, 5, 10]
+        
+    # 6. XGBoost
+    - name: "XGBoost"
+      type: "gradient_boosting"
+      params:
+        n_estimators: 100
+        max_depth: 6
+        learning_rate: 0.1
+        subsample: 0.8
+        colsample_bytree: 0.8
+        scale_pos_weight: 3  # Adjust for imbalance
+        random_state: 42
+        use_label_encoder: false
+        eval_metric: "logloss"
+      hyperparams:
+        n_estimators: [50, 100, 200]
+        max_depth: [3, 6, 9]
+        learning_rate: [0.01, 0.1, 0.2]
+        subsample: [0.7, 0.8, 0.9]
+        
+    # 7. Support Vector Machine (SVM)
+    - name: "SVM"
+      type: "kernel-based"
+      params:
+        kernel: "rbf"
+        C: 1.0
+        gamma: "scale"
+        class_weight: "balanced"
+        probability: true
+      hyperparams:
+        C: [0.1, 1, 10, 100]
+        kernel: ["rbf", "linear", "poly"]
+        gamma: ["scale", "auto", 0.1, 0.01]
+        
+    # 8. Multi-Layer Perceptron (MLP)
+    - name: "MLP"
+      type: "neural_network"
+      params:
+        hidden_layer_sizes: [64, 32]
+        activation: "relu"
+        solver: "adam"
+        alpha: 0.001
+        batch_size: "auto"
+        learning_rate: "adaptive"
+        learning_rate_init: 0.001
+        max_iter: 500
+        early_stopping: true
+        validation_fraction: 0.1
+        random_state: 42
+      hyperparams:
+        hidden_layer_sizes: [[64, 32], [128, 64], [64, 32, 16]]
+        activation: ["relu", "tanh"]
+        solver: ["adam", "sgd"]
+        alpha: [0.0001, 0.001, 0.01]
+  
+  # Training configuration
+  training:
+    validation_strategy: "stratified_kfold"
+    cv_folds: 5
+    test_size: 0.2
+    random_state: 42
+    
+  # Evaluation metrics
+  evaluation_metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "roc_auc"
+    - "confusion_matrix"
+    
+  # Hyperparameter tuning
+  hyperparameter_tuning:
+    method: "grid_search"
+    cv_folds: 5
+    scoring: "f1"  # Optimize for F1 due to class imbalance
+    n_jobs: -1  # Use all CPU cores
+    
+  # Model selection criteria
+  selection_criteria:
+    primary_metric: "f1_score"
+    secondary_metric: "roc_auc"
+    reason: "Class imbalance (skewness=0.77) - accuracy alone is misleading"
+    
+  # Comparison table columns
+  comparison_columns:
+    - "model_name"
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "roc_auc"
+    - "training_time_seconds"
+    - "hyperparams"
+
+# =============================================================================
+# OUTPUT FILES
+# =============================================================================
+# Intermediate files between pipeline steps
+# =============================================================================
+output:
+  # Member 1 - Numeric Processing (Steps 1-6)
+  member_1:
+    validated: "data/raw/validated.csv"
+    group_a_processed: "data/intermediate/group_a_processed.csv"
+    # Features: eccentricity, lobularity_score, chromatin_density, nucleus_area_pct, circularity
+    group_b_processed: "data/intermediate/group_b_processed.csv"
+    # Features: cell_diameter_um, cell_area_px, perimeter_px, cytoplasm_ratio, membrane_smoothness, granularity_score
+    group_c_processed: "data/intermediate/group_c_processed.csv"
+    # Features: wbc_count_per_ul, rbc_count_millions_per_ul, hemoglobin_g_dl, hematocrit_pct, platelet_count_per_ul, mcv_fl, mchc_g_dl, mean_r, mean_g, mean_b, stain_intensity
+    group_d_processed: "data/intermediate/group_d_processed.csv"
+    # Features: labeller_confidence_score, cytodiffusion_classification_confidence, cytodiffusion_anomaly_score (dropped)
+    numeric_processed: "data/intermediate/numeric_processed.csv"
+    
+  # Member 2 - Categorical & Feature Engineering (Steps 7-10)
+  member_2:
+    categorical_encoded: "data/intermediate/categorical_encoded.csv"
+    feature_engineered: "data/intermediate/feature_engineered.csv"
+    # New features: nc_ratio, form_factor, chromaticity (r_ratio, g_ratio, b_ratio), size_anomaly
+    clustering_added: "data/intermediate/clustering_added.csv"
+    # New feature: cell_subpopulation
+    augmented: "data/intermediate/augmented.csv"
+    
+  # Member 3 - Feature Selection & Validation (Steps 11-14)
+  member_3:
+    feature_reduced: "data/intermediate/feature_reduced.csv"
+    feature_selected: "data/intermediate/feature_selected.csv"
+    imbalance_handled: "data/intermediate/imbalance_handled.csv"
+    model_input: "data/processed/model_input.csv"
+    validation_report: "reports/validation_report.md"
+    
+  # Leader - Model Training & Evaluation (Steps 15-16)
+  leader:
+    saved_models: "models/saved/"
+    best_model: "models/best_model.pkl"
+    model_metrics: "models/metrics.json"
+    training_report: "reports/training_report.md"
+    evaluation_report: "reports/evaluation_report.md"
+    confusion_matrix: "reports/confusion_matrix.png"
+    roc_curve: "reports/roc_curve.png"
+    feature_importance: "reports/feature_importance.png"
+   
