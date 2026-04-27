@@ -82,7 +82,7 @@ Features are categorized into four strategic groups, each receiving specialized 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-repo/blood-cell-classification.git
+   git clone https://github.com/phuchoang2005/data-mining-university.git
    ```
 2. **Set up the virtual environment and install dependencies:**
    ```bash
