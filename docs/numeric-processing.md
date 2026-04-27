@@ -8,7 +8,7 @@
   - **Biến đổi:** Sử dụng **Power Transformer (Yeo-Johnson)** để đưa về phân phối chuẩn cho các mô hình Bayes và MLP.
   - **Scaling:** Bắt buộc dùng **RobustScaler** (tính toán dựa trên Median và IQR) thay vì StandardScaler để bảo vệ các đặc tính của Outliers.
 
-  ![](/numeric/NhomA.png)
+  ![](./numeric/NhomA.png)
 
 ## 2. Nhóm B: Đặc điểm Hình thái học (Đa đỉnh)
 
@@ -20,7 +20,7 @@
   - **Biến đổi:** Có thể giữ nguyên phân phối đa đỉnh hoặc dùng **QuantileTransformer** nếu bạn muốn đưa về phân phối đều (Uniform) hoặc chuẩn để mô hình dễ hội tụ hơn.
   - **Scaling:** **StandardScaler** (Z-score).
 
-  ![](/numeric/NhomB.png)
+  ![](./numeric/NhomB.png)
 
 ## 3. Nhóm C: Chỉ số Huyết học & Nhiễu kỹ thuật
 
@@ -32,7 +32,7 @@
   - **Scaling:** **Min-Max Scaler** hoặc **StandardScaler**.
   - **Lưu ý:** Nếu tài nguyên tính toán hạn chế, có thể xem xét loại bỏ bớt các biến này (Feature Selection) vì chúng đóng góp rất ít vào độ chính xác của mô hình phân loại tế bào.
 
-  ![](/numeric/NhomC.png)
+  ![](./numeric/NhomC.png)
 
 ## 4. Nhóm D: Điểm tin cậy & Thuật toán
 
@@ -42,7 +42,7 @@
   - **Loại bỏ:** **Drop cột `cytodiffusion_anomaly_score`** để tránh mô hình bị "học vẹt" kết quả của thuật toán cũ.
   - **Lọc dữ liệu:** Sử dụng `labeller_confidence_score` để lọc bỏ (Drop) các hàng có độ tin cậy thấp (< 0.5) trong tập huấn luyện để đảm bảo mô hình học từ dữ liệu chuẩn.
 
-  ![](/numeric/NhomD.png)
+  ![](./numeric/NhomD.png)
 
 ---
 
@@ -63,6 +63,4 @@ Vì Skewness nhãn là `0.77`, tập dữ liệu của bạn đang bị lệch (
 
 - **Chiến lược:** Sử dụng **Stratified Shuffle Split** khi chia tập Train/Test để đảm bảo tỷ lệ nhãn bất thường đồng đều ở cả hai tập.
 
-[Chi tiết xử lý](/numeric/advanced-numeric-processing.md)
-
-[Phân công](assignment.md)
+[Chi tiết xử lý](./numeric/advanced-numeric-processing.md)
