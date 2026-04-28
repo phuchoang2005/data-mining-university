@@ -7,15 +7,12 @@
   - Công thức: $$Z_{grouped} = \frac{x - \mu_{cell\_type}}{\sigma_{cell\_type}}$$
 - **Ý nghĩa:** Đặc trưng này cho mô hình biết: "Tế bào này to bất thường **so với các tế bào cùng loại với nó**", thay vì to so với trung bình chung của mẫu máu.
 
-## 2. Smoothing Target Encoding cho `cell_type`
+## 2. ~~Smoothing Target Encoding~~ → One-Hot Encoding cho `cell_type`
 
-Vì `cell_type` có nhiều nhóm (High Cardinality), dùng One-Hot Encoding sẽ làm dữ liệu bị loãng (Sparse matrix).
+> **⚠️ Cảnh báo:** Trong bộ dữ liệu này, `cell_type` có mối quan hệ gần như xác định với `anomaly_label` (p_value = 0.0). Điều này có nghĩa là mỗi loại tế bào đều ánh xạ gần 100% vào nhãn 0 hoặc 1. Target Encoding (kể cả với Smoothing) sẽ chuyển `cell_type` thành giá trị gần bằng 0.0 hoặc 1.0 — tức là **bản sao của nhãn mục tiêu**, gây Overfitting nghiêm trọng.
 
-- **Giải pháp:** Thay thế tên tế bào bằng xác suất bất thường của nó, nhưng cần thêm **Smoothing** để tránh Overfitting cho các nhóm hiếm.
-- **Công thức:**
-  $$\hat{x}_i = \lambda(n_i) \frac{\sum y}{n_i} + (1 - \lambda(n_i)) \mu_{global}$$
-- Trong đó $\lambda(n_i)$ là trọng số dựa trên số lượng mẫu của loại tế bào đó.
-- **Ý nghĩa:** Biến `cell_type` thành một con số thể hiện "mức độ nguy hiểm" của loại tế bào đó dựa trên thống kê toàn bộ tập dữ liệu.
+- **Giải pháp thực tế:** Sử dụng **One-Hot Encoding** cho `cell_type` (gom nhóm hiếm < 2% vào `Other_Rare_Types`). OHE mã hóa **danh tính** của loại tế bào mà không nhúng target information.
+- **Khi nào dùng Target Encoding:** Chỉ khi mối quan hệ giữa biến phân loại và nhãn là **xác suất** (ví dụ: 60%/40%), không phải xác định (100%/0%).
 
 ---
 

@@ -39,8 +39,8 @@
 - **Đặc trưng phân phối:**
   - **Phân tách:** `anomaly_score` tách biệt 100% (Dấu hiệu của rò rỉ dữ liệu). `confidence` lệch trái (người dán nhãn tự tin vào các mẫu bình thường hơn).
 - **Kết luận hướng xử lý:**
-  - **Loại bỏ:** **Drop cột `cytodiffusion_anomaly_score`** để tránh mô hình bị "học vẹt" kết quả của thuật toán cũ.
-  - **Lọc dữ liệu:** Sử dụng `labeller_confidence_score` để lọc bỏ (Drop) các hàng có độ tin cậy thấp (< 0.5) trong tập huấn luyện để đảm bảo mô hình học từ dữ liệu chuẩn.
+  - **Loại bỏ:** **Drop cột `cytodiffusion_anomaly_score`** và **`cytodiffusion_classification_confidence`** để tránh rò rỉ dữ liệu (cả hai đều từ hệ thống cytodiffusion đã phân loại anomaly).
+  - **Lọc dữ liệu:** Sử dụng `labeller_confidence_score` để lọc bỏ các hàng có độ tin cậy thấp (< 0.5), sau đó **drop cột** này (meta-feature, không phải thuộc tính tế bào).
 
   ![](./numeric/NhomD.png)
 
@@ -48,12 +48,12 @@
 
 ### Bảng tóm tắt thực thi nhanh
 
-| Thành phần xử lý        | Nhóm A (Vàng)     | Nhóm B (Hình thái) | Nhóm C (Nhiễu/Huyết học) |
-| :---------------------- | :---------------- | :----------------- | :----------------------- |
-| **Xử lý Outlier**       | Capping (Giữ lại) | Capping            | Trimming (Xóa)           |
-| **Biến đổi Skew**       | Yeo-Johnson       | Yeo-Johnson        | Không cần                |
-| **Phương pháp Scaling** | **RobustScaler**  | StandardScaler     | StandardScaler           |
-| **Tầm quan trọng**      | Rất cao           | Cao                | Thấp                     |
+| Thành phần xử lý        | Nhóm A (Vàng)     | Nhóm B (Hình thái)     | Nhóm C (Nhiễu/Huyết học) |
+| :---------------------- | :---------------- | :--------------------- | :----------------------- |
+| **Xử lý Outlier**       | Capping (Giữ lại) | Capping                | Trimming (Xóa)           |
+| **Biến đổi Skew**       | Yeo-Johnson       | QuantileTransformer    | Không cần                |
+| **Phương pháp Scaling** | **RobustScaler**  | StandardScaler         | **Min-Max Scaler**       |
+| **Tầm quan trọng**      | Rất cao           | Cao                    | Thấp                     |
 
 ---
 

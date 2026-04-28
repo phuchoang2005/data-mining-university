@@ -39,7 +39,7 @@ Dựa trên kết quả EDA của bạn, tôi đề xuất bộ lọc cuối cù
 | **Nhóm A (Hình thái)** | **Giữ lại 100%** | Điểm Mutual Information cao, KDE phân tách rõ. |
 | **Nhóm B (Đa đỉnh)** | **Lọc qua VIF** | Loại bỏ bớt các biến kích thước trùng lặp (ví dụ: bỏ `perimeter` nếu đã có `area`). |
 | **Nhóm C (Huyết học)** | **Loại bỏ 70%** | KDE chồng khít, MI thấp. Chỉ giữ lại 1-2 biến đại diện (như `mcv_fl`). |
-| **Nhóm D (Điểm số)** | **Loại bỏ `anomaly_score`** | Tránh Data Leakage. Chỉ dùng `confidence` để lọc hàng (samples). |
+| **Nhóm D (Điểm số)** | **Loại bỏ `anomaly_score` và `classification_confidence`** | Tránh Data Leakage (cả hai từ hệ thống cytodiffusion). Dùng `labeller_confidence` để lọc hàng, sau đó drop. |
 
 ---
 

@@ -169,24 +169,31 @@ numeric_groups:
         reason: "Data leakage - prevents model from 'memorizing' results"
         
       labeller_confidence_score:
-        action: "filter_rows"
+        action: "filter_rows_then_drop"
         threshold: 0.5
-        reason: "Remove low-confidence labeled samples from training"
+        reason: "Remove low-confidence labeled samples, then drop column (meta-feature, not cell property)"
         
       cytodiffusion_classification_confidence:
-        action: "keep"
-        reason: "May provide useful context"
+        action: "drop"
+        reason: "Data leakage - confidence from the same cytodiffusion system that produced anomaly_score"
 
 # =============================================================================
 # CATEGORICAL FEATURE PROCESSING (Member 2)
 # =============================================================================
 categorical_features:
+  cell_id:
+    processing: "drop"
+    reason: "Identifier column - no predictive value"
+    action: "drop"
+
   cell_type:
-    processing: "target_encoding"
-    # Alternative: one_hot_encoding
+    processing: "one_hot_encoding"
+    # CHANGED from target_encoding: with p_value=0.0, target encoding creates
+    # a near-perfect copy of the target (each cell type maps 100% to 0 or 1),
+    # causing overfitting regardless of smoothing or CV folds.
+    # OHE encodes identity only, without embedding target information.
     special_handling:
       - "Group rare types (< 2%) into 'Other_Rare_Types'"
-      - "Use smoothing for high cardinality"
     p_value: 0.0
     action: "keep"
     
@@ -439,8 +446,8 @@ pipeline_order:
     
   step_5:
     member: 1
-    task: "Process Group D (Confidence scores) - drop anomaly_score, filter by confidence"
-    description: "Remove data leakage, filter low-confidence samples"
+    task: "Process Group D (Confidence scores) - drop leakage columns, filter by confidence"
+    description: "Drop cytodiffusion_anomaly_score and cytodiffusion_classification_confidence (data leakage). Filter rows where labeller_confidence_score < 0.5, then drop the column."
     input_features: ["labeller_confidence_score", "cytodiffusion_classification_confidence", "cytodiffusion_anomaly_score"]
     output: "data/intermediate/group_d_processed.csv"
     
@@ -456,7 +463,7 @@ pipeline_order:
   step_7:
     member: 2
     task: "Encode categorical variables"
-    description: "One-Hot/Target/Ordinal encoding, drop leakage (disease_category)"
+    description: "One-Hot encoding (cell_type, staining_protocol, patient_sex), Ordinal encoding (patient_age_group), drop leakage/ID columns (cell_id, disease_category, dataset_source, microscope_model)"
     input: "data/intermediate/numeric_processed.csv"
     output: "data/intermediate/categorical_encoded.csv"
     

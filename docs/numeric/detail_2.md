@@ -22,25 +22,30 @@ Nếu bạn chỉ dùng một giá trị trung bình (mean) cho một biến có
 * `nucleus_area_pct`
 * `chromatin_density`
 * `cell_area_px`
+* `cytoplasm_ratio`
+* `granularity_score`
 
 ### Bước 2: Tìm số lượng cụm tối ưu ($K$)
 Bạn cần xác định xem có bao nhiêu "đỉnh" thực sự.
 * Sử dụng **Elbow Method** (Phương pháp khuỷu tay) hoặc **Silhouette Score**.
-* Thông thường với tế bào máu, $K$ thường rơi vào khoảng **3 đến 5** (tương ứng với các dòng tế bào chính).
+* Thông thường với tế bào máu, $K$ thường rơi vào khoảng **3 đến 5** (tương ứng với các dòng tế bào chính). Hiện tại pipeline sử dụng **$K = 4$**.
 
 ### Bước 3: Huấn luyện và Gán nhãn cụm
 Sử dụng GMM để tính toán xác suất tế bào thuộc về một cụm.
 
 ```python
-from sklearn.mixture import Gaussian Mixture
+from sklearn.mixture import GaussianMixture
 import pandas as pd
 
 # 1. Chọn các biến đa đỉnh đã được scaling
-features_for_clustering = ['cell_diameter_um', 'nucleus_area_pct', 'chromatin_density']
+features_for_clustering = [
+    'cell_diameter_um', 'nucleus_area_pct', 'chromatin_density',
+    'cell_area_px', 'cytoplasm_ratio', 'granularity_score'
+]
 X_clust = df[features_for_clustering]
 
-# 2. Khởi tạo GMM (giả sử có 3 đỉnh chính từ biểu đồ KDE)
-gmm = GaussianMixture(n_components=3, random_state=42)
+# 2. Khởi tạo GMM (4 cụm dựa trên kết quả Elbow Method)
+gmm = GaussianMixture(n_components=4, random_state=42)
 df['cell_subpopulation'] = gmm.fit_predict(X_clust)
 
 # 3. Xem kết quả phân cụm có khớp với nhãn anomaly không
