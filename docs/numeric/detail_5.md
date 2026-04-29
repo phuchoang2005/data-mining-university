@@ -34,7 +34,7 @@ Vì nhãn `anomaly_label` của bạn bị lệch (Skew = 0.77), lớp "Bất th
 Trong thực tế, điều kiện lấy mẫu có thể thay đổi (ví dụ: máy đo ở bệnh viện A luôn cho kết quả `hemoglobin` cao hơn bệnh viện B một chút).
 
 * **Kỹ thuật:** **Feature Scaling Shifting.**
-    * Thực hiện nhân toàn bộ một cột đặc trưng với một hệ số biến thiên nhỏ (ví dụ: $0.95$ hoặc $1.05$).
+    * Thực hiện nhân toàn bộ một cột đặc trưng với một hệ số biến thiên nhỏ (ví dụ: $0.98$ hoặc $1.02$).
     * Áp dụng cho các chỉ số huyết học ở **Nhóm C**.
 * **Mục tiêu:** Tạo ra một tập dữ liệu "stress-test" để kiểm tra xem mô hình có bị sụp đổ khi các chỉ số tổng quát của bệnh nhân bị dịch chuyển nhẹ hay không.
 

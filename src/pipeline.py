@@ -12,7 +12,9 @@ from .preprocessing.numeric import (
 from .preprocessing.categorical import CategoricalProcessor
 from .preprocessing.feature_eng import FeatureEngineer
 from .preprocessing.clustering import GMMClusterer
-from .preprocessing.augmentation import get_smote_tomek
+from .preprocessing.augmentation import (
+    get_smote_tomek, gaussian_noise_sampler, ProtocolShifter, covariate_shift_sampler
+)
 from .selection import FeatureSelector
 from .utils import ColumnDropper
 
@@ -20,17 +22,27 @@ from .utils import ColumnDropper
 def build_preprocessing_pipeline():
     """
     Builds the end-to-end preprocessing pipeline.
-    Correct order per config:
-      1. Row filtering (confidence, IQR)
-      2. Drop leakage/ID columns
-      3. Physical unit normalization
-      4. Feature engineering (needs raw values)
-      5. Categorical encoding
-      6. Drop utility columns (no longer needed)
-      7. Numeric scaling (ColumnTransformer)
-      8. Clustering
-      9. Feature selection
-     10. SMOTE-Tomek
+    Matches config.yml pipeline_order (steps 1-14):
+
+      Member 1 - Numeric Processing:
+        1. Row filtering (confidence >= 0.5, then drop column later)
+        2. IQR trimming for Group C outliers
+        3. Drop leakage/ID columns
+        4. Physical unit normalization
+
+      Member 2 - Categorical & Feature Engineering:
+        5. Feature engineering (needs raw unscaled values)
+        6. Protocol shifting (normalize colors across staining protocols)
+        7. Categorical encoding
+        8. Drop utility columns (no longer needed)
+        9. Numeric scaling (ColumnTransformer per group)
+       10. GMM clustering
+       11. Gaussian noise augmentation (Group B & C features)
+       12. Covariate shift augmentation (Group C hematology features)
+
+      Member 3 - Feature Selection & Validation:
+       13. Feature selection (Correlation + Mutual Information)
+       14. SMOTE-Tomek (class imbalance handling)
     """
     # Feature group definitions from config
     group_a_features = [
@@ -52,19 +64,23 @@ def build_preprocessing_pipeline():
     ]
 
     # --- Numeric group sub-pipelines (used inside ColumnTransformer) ---
+    # Group A: Capping [1,99] → Yeo-Johnson → RobustScaler (config: numeric_groups.group_a)
     group_a_pipe = Pipeline([
         ('capper', OutlierCapper(percentiles=(1, 99))),
         ('yeo_johnson', PowerTransformer(method='yeo-johnson')),
         ('scaler', RobustScaler())
     ])
+    # Group B: Capping [1,99] → QuantileTransformer(uniform) → StandardScaler (config: numeric_groups.group_b)
     group_b_pipe = Pipeline([
         ('capper', OutlierCapper(percentiles=(1, 99))),
         ('quantile', QuantileTransformer(output_distribution='uniform', random_state=42)),
         ('scaler', StandardScaler())
     ])
+    # Group C: MinMaxScaler only (config: numeric_groups.group_c)
     group_c_pipe = Pipeline([
         ('scaler', MinMaxScaler())
     ])
+    # Engineered features: StandardScaler
     engineered_pipe = Pipeline([
         ('scaler', StandardScaler())
     ])
@@ -85,6 +101,7 @@ def build_preprocessing_pipeline():
     # --- Assemble full pipeline ---
     full_pipeline = ImbPipeline([
         # Step 1: Filter low-confidence rows (Group D)
+        # Config: group_d.labeller_confidence_score.threshold = 0.5
         ('conf_filter', FunctionSampler(
             func=confidence_filter_sampler,
             kw_args={"threshold": 0.5},
@@ -92,6 +109,7 @@ def build_preprocessing_pipeline():
         )),
 
         # Step 2: IQR trimming for Group C outliers
+        # Config: numeric_groups.group_c.outlier_strategy = trimming, iqr_multiplier = 1.5
         ('iqr_trimmer', FunctionSampler(
             func=iqr_trimming_sampler,
             kw_args={"features": group_c_features, "iqr_multiplier": 1.5},
@@ -99,6 +117,8 @@ def build_preprocessing_pipeline():
         )),
 
         # Step 3: Drop leakage & ID columns
+        # Config: categorical_features (cell_id, disease_category, dataset_source, microscope_model)
+        # Config: group_d (cytodiffusion_anomaly_score, cytodiffusion_classification_confidence)
         ('drop_leakage', ColumnDropper(columns=[
             "cell_id",                           # ID column
             "disease_category",                  # data leakage
@@ -109,31 +129,75 @@ def build_preprocessing_pipeline():
         ])),
 
         # Step 4: Physical unit normalization (needs magnification_x)
+        # Config: feature_engineering.physical_units
         ('phys_norm', PhysicalUnitNormalizer()),
 
         # Step 5: Feature engineering (needs raw unscaled values)
+        # Config: feature_engineering (nc_ratio, form_factor, chromaticity, size_anomaly)
         ('feature_eng', FeatureEngineer()),
 
-        # Step 6: Categorical encoding
+        # Step 6: Protocol shifting (normalize colors across staining protocols)
+        # Config: data_augmentation.protocol_shifting
+        # Must run BEFORE categorical encoding (needs raw staining_protocol column)
+        ('protocol_shift', ProtocolShifter(
+            target_features=["mean_r", "mean_g", "mean_b", "stain_intensity"],
+            protocol_col="staining_protocol"
+        )),
+
+        # Step 7: Categorical encoding
+        # Config: categorical_features (OHE: cell_type, staining_protocol, patient_sex;
+        #         Ordinal: patient_age_group; Drop handled in step 3)
         ('categorical_proc', CategoricalProcessor()),
 
-        # Step 7: Drop utility columns no longer needed
+        # Step 8: Drop utility columns no longer needed
         ('drop_utility', ColumnDropper(columns=[
             "magnification_x",                   # used by PhysicalUnitNormalizer
             "image_resolution_px",               # not in any feature group
             "labeller_confidence_score",          # used for row filtering only
         ])),
 
-        # Step 8: Numeric scaling per group
+        # Step 9: Numeric scaling per group
         ('numeric_ct', numeric_ct),
 
-        # Step 9: GMM clustering
+        # Step 10: GMM clustering
+        # Config: clustering (GMM, 4 components, 6 features)
         ('gmm_cluster', GMMClusterer(n_components=4)),
 
-        # Step 10: Feature selection
+        # Step 11: Gaussian noise augmentation
+        # Config: data_augmentation.gaussian_noise (Group B & C features, sigma 1%)
+        ('gaussian_noise', FunctionSampler(
+            func=gaussian_noise_sampler,
+            kw_args={
+                "target_features": [
+                    "cell_diameter_um", "cell_area_px", "perimeter_px",
+                    "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
+                    "mean_r", "mean_g", "mean_b"
+                ],
+                "sigma_percentage": 0.01
+            },
+            validate=False
+        )),
+
+        # Step 12: Covariate shift augmentation
+        # Config: data_augmentation.covariate_shift (Group C hematology, factor [0.98, 1.02])
+        ('covariate_shift', FunctionSampler(
+            func=covariate_shift_sampler,
+            kw_args={
+                "target_features": [
+                    "wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl",
+                    "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl"
+                ],
+                "factor_range": (0.98, 1.02)
+            },
+            validate=False
+        )),
+
+        # Step 13: Feature selection (Correlation + Mutual Information)
+        # Config: feature_selection (corr_threshold=0.9, k_best range [15,20])
         ('feature_select', FeatureSelector(corr_threshold=0.9, k_best=20)),
 
-        # Step 11: Imbalance handling
+        # Step 14: Imbalance handling
+        # Config: imbalance_handling / data_augmentation.smote (SMOTE-Tomek Links)
         ('smote_tomek', get_smote_tomek())
     ])
 

@@ -63,7 +63,7 @@ def confidence_filter_sampler(X, y, confidence_col="labeller_confidence_score", 
     y_s = pd.Series(y).reset_index(drop=True) if y is not None else None
 
     if confidence_col in X_df.columns:
-        mask = X_df[confidence_col] > threshold
+        mask = X_df[confidence_col] >= threshold
         X_out = X_df[mask].reset_index(drop=True)
         y_out = y_s[mask].reset_index(drop=True) if y_s is not None else None
         return X_out, y_out

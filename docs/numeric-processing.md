@@ -29,7 +29,7 @@
   - **Hình dạng:** Đối xứng, gần với phân phối Gauss (chuẩn). Outliers thưa thớt và rời rạc.
 - **Kết luận hướng xử lý:**
   - **Outlier:** **Xóa bỏ (Trimming)** các mẫu nằm ngoài ngưỡng $1.5 \times IQR$. Đây chủ yếu là lỗi đo đạc hoặc nhiễu thiết bị.
-  - **Scaling:** **Min-Max Scaler** hoặc **StandardScaler**.
+  - **Scaling:** **Min-Max Scaler**.
   - **Lưu ý:** Nếu tài nguyên tính toán hạn chế, có thể xem xét loại bỏ bớt các biến này (Feature Selection) vì chúng đóng góp rất ít vào độ chính xác của mô hình phân loại tế bào.
 
   ![](./numeric/NhomC.png)

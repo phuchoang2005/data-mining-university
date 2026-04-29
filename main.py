@@ -52,7 +52,7 @@ def main():
 
             # Train and tune
             start_time = time.time()
-            grid_search = train_and_tune(full_pipeline, X_train, y_train, param_grid, cv=3)
+            grid_search = train_and_tune(full_pipeline, X_train, y_train, param_grid, cv=5)
             training_time = time.time() - start_time
 
             best_pipeline = grid_search.best_estimator_
