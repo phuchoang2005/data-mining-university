@@ -14,7 +14,7 @@ This document provides a step-by-step guide for the Team Leader to train, tune, 
 
 ## 2. Models to Train
 
-Train and compare the following 8 models:
+Train and compare the following 6 models:
 
 - Decision Tree
 - Naive Bayes (GaussianNB)
@@ -22,8 +22,8 @@ Train and compare the following 8 models:
 - Logistic Regression
 - Random Forest
 - XGBoost
-- Support Vector Machine (SVM)
-- Multi-Layer Perceptron (MLP)
+
+
 
 ---
 

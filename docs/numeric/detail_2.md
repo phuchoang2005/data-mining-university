@@ -1,7 +1,7 @@
 ## 1. Tại sao phải dùng Clustering cho phân phối đa đỉnh?
 Nếu bạn chỉ dùng một giá trị trung bình (mean) cho một biến có 3 đỉnh, giá trị đó thường rơi vào "vùng trũng" – nơi không có dữ liệu thực tế.
 * **Mục tiêu:** Biến các "đỉnh" này thành một đặc trưng phân loại mới (Cluster ID).
-* **Lợi ích:** Giúp mô hình (như XGBoost hay MLP) hiểu rằng: "Tế bào này thuộc nhóm Kích thước Lớn, nên tiêu chuẩn về độ tròn của nó phải khác với nhóm Kích thước Nhỏ".
+* **Lợi ích:** Giúp mô hình (như XGBoost) hiểu rằng: "Tế bào này thuộc nhóm Kích thước Lớn, nên tiêu chuẩn về độ tròn của nó phải khác với nhóm Kích thước Nhỏ".
 
 ---
 
@@ -74,6 +74,6 @@ Coi nhãn cụm là một biến hạng mục (Categorical feature).
 * **Tránh rò rỉ dữ liệu (Data Leakage):** Khi huấn luyện Clustering, tuyệt đối **không đưa biến `anomaly_label` vào**. Clustering phải hoàn toàn khách quan dựa trên đặc điểm hình thái.
 * **Xử lý Outliers trước:** Bạn nên xử lý các giá trị quá cực đoan (Nhóm C) trước khi chạy Clustering, vì K-Means và GMM rất nhạy cảm với outliers, chúng có thể tạo ra một cụm riêng chỉ chứa 1-2 điểm nhiễu.
 
-**Kết luận:** Bằng cách thêm bước Clustering này, bạn đang chuyển đổi bài toán từ "Phân loại mù" sang "Phân loại có ngữ cảnh dòng tế bào". Điều này đặc biệt hiệu quả nếu bạn định sử dụng **Random Forest** hoặc **SVM**.
+**Kết luận:** Bằng cách thêm bước Clustering này, bạn đang chuyển đổi bài toán từ "Phân loại mù" sang "Phân loại có ngữ cảnh dòng tế bào". Điều này đặc biệt hiệu quả nếu bạn định sử dụng **Random Forest**.
 
 Bạn có muốn tôi giúp viết một đoạn code hoàn chỉnh tích hợp cả **Feature Engineering (N/C Ratio)** và **Clustering (GMM)** vào một Pipeline duy nhất không?

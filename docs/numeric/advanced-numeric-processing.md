@@ -24,7 +24,7 @@ Như bạn thấy ở Nhóm B, các biến có nhiều đỉnh (do chứa nhiề
 
 ## 4. Xử lý mất cân bằng nhãn (Advanced Imbalance Handling)
 Với `anomaly_label` có Skewness 0.77, dữ liệu của bạn đang lệch. Ngoài việc dùng SMOTE thông thường, hãy thử:
-* **SMOTE-Tomek Links:** Kết hợp tạo mẫu ảo (Oversampling) và xóa các mẫu gây nhiễu ở biên giới giữa hai lớp (Undersampling). Điều này giúp đường biên phân loại của các mô hình như SVM hoặc KNN trở nên "sạch" hơn.
+* **SMOTE-Tomek Links:** Kết hợp tạo mẫu ảo (Oversampling) và xóa các mẫu gây nhiễu ở biên giới giữa hai lớp (Undersampling). Điều này giúp đường biên phân loại của các mô hình như KNN trở nên "sạch" hơn.
 * **Cost-sensitive Learning:** Thay vì thay đổi dữ liệu, hãy gán "hình phạt" nặng hơn cho mô hình khi dự đoán sai lớp Bất thường (Nhãn 1).
 
 ## 5. Tăng cường dữ liệu bằng "Dịch chuyển phân phối" (Distribution Shifting)

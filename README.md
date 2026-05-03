@@ -17,7 +17,7 @@ The project is implemented by a 4-member team using a parallel pipeline model:
 1.  **Data Sanitizer (Member 1):** Data cleaning, label noise removal, and handling technical outliers (Group C).
 2.  **Feature Engineer (Member 2):** Physical unit conversion ($\mu m$), engineering new features (NC Ratio, Form Factor), and skewness correction.
 3.  **Advanced Statistician (Member 3):** GMM Clustering, Grouped Z-scores, Feature Selection (RFE), and Class Balancing (SMOTE-Tomek).
-4.  **Team Lead / ML Architect:** End-to-end Pipeline construction, multi-model training (XGBoost, MLP, SVM...), hyperparameter tuning, and SHAP evaluation.
+4.  **Team Lead / ML Architect:** End-to-end Pipeline construction, multi-model training (XGBoost, Random Forest...), hyperparameter tuning, and SHAP evaluation.
 
 ---
 

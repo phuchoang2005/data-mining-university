@@ -518,8 +518,8 @@ pipeline_order:
   # -------------------------------------------------------------------------
   step_15:
     member: "leader"
-    task: "Train 8 classification models with hyperparameter tuning"
-    description: "Decision Tree, Naive Bayes, KNN, Logistic Regression, Random Forest, XGBoost, SVM, MLP"
+    task: "Train 6 classification models with hyperparameter tuning"
+    description: "Decision Tree, Naive Bayes, KNN, Logistic Regression, Random Forest, XGBoost"
     input: "data/processed/model_input.csv"
     output: "models/saved/"
     
@@ -532,7 +532,7 @@ pipeline_order:
 # =============================================================================
 # MODEL TRAINING CONFIGURATION (Leader)
 # =============================================================================
-# 8 Models to train and evaluate
+# 6 Models to train and evaluate
 # =============================================================================
 model_training:
   # Input from pre-processed data
@@ -540,7 +540,7 @@ model_training:
     processed_data: "data/processed/model_input.csv"
     target_column: "anomaly_label"
     
-  # Models to evaluate (8 total)
+  # Models to evaluate (6 total)
   models:
     # 1. Decision Tree
     - name: "Decision Tree"
@@ -623,41 +623,6 @@ model_training:
         learning_rate: [0.01, 0.1, 0.2]
         subsample: [0.7, 0.8, 0.9]
         
-    # 7. Support Vector Machine (SVM)
-    - name: "SVM"
-      type: "kernel-based"
-      params:
-        kernel: "rbf"
-        C: 1.0
-        gamma: "scale"
-        class_weight: "balanced"
-        probability: true
-      hyperparams:
-        C: [0.1, 1, 10, 100]
-        kernel: ["rbf", "linear", "poly"]
-        gamma: ["scale", "auto", 0.1, 0.01]
-        
-    # 8. Multi-Layer Perceptron (MLP)
-    - name: "MLP"
-      type: "neural_network"
-      params:
-        hidden_layer_sizes: [64, 32]
-        activation: "relu"
-        solver: "adam"
-        alpha: 0.001
-        batch_size: "auto"
-        learning_rate: "adaptive"
-        learning_rate_init: 0.001
-        max_iter: 500
-        early_stopping: true
-        validation_fraction: 0.1
-        random_state: 42
-      hyperparams:
-        hidden_layer_sizes: [[64, 32], [128, 64], [64, 32, 16]]
-        activation: ["relu", "tanh"]
-        solver: ["adam", "sgd"]
-        alpha: [0.0001, 0.001, 0.01]
-  
   # Training configuration
   training:
     validation_strategy: "stratified_kfold"

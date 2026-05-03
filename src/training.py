@@ -6,8 +6,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
-from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
+
+
 from sklearn.model_selection import GridSearchCV
 
 
@@ -19,8 +19,8 @@ MODEL_CLASS_MAP = {
     "Logistic Regression": LogisticRegression,
     "Random Forest": RandomForestClassifier,
     "XGBoost": XGBClassifier,
-    "SVM": SVC,
-    "MLP": MLPClassifier,
+
+
 }
 
 # Params in config that are metadata, NOT constructor arguments
@@ -54,9 +54,9 @@ def _prepare_params(name, params):
     """
     clean = {k: _coerce_value(v) for k, v in params.items() if k not in _META_PARAMS}
 
-    # MLP hidden_layer_sizes: YAML list [64, 32] → Python tuple (64, 32)
-    if "hidden_layer_sizes" in clean and isinstance(clean["hidden_layer_sizes"], list):
-        clean["hidden_layer_sizes"] = tuple(clean["hidden_layer_sizes"])
+
+
+
 
     # Logistic Regression: 'lbfgs' does not support l1 penalty.
     # Use 'saga' so GridSearchCV can search both l1 and l2 without errors.
@@ -80,9 +80,9 @@ def _prepare_hyperparams(name, hyperparams):
         # Coerce each value in the list
         values = [_coerce_value(v) for v in values]
 
-        # MLP hidden_layer_sizes: [[64,32],[128,64]] → [(64,32),(128,64)]
-        if key == "hidden_layer_sizes":
-            values = [tuple(v) if isinstance(v, list) else v for v in values]
+
+
+
 
         grid[prefixed] = values
     return grid

@@ -4,8 +4,8 @@
   - **Phân tách (Separability):** Rất tốt. Nhãn 0 và 1 có vùng phân phối tách biệt rõ rệt (đặc biệt là `eccentricity` và `lobularity_score`).
   - **Hình dạng:** Lệch nặng (Skewed), xuất hiện dải Outliers dài và dày đặc trong Boxplot.
 - **Kết luận hướng xử lý:**
-  - **Outlier:** **Giữ lại toàn bộ**. Đây là các mẫu bệnh lý đặc trưng. Áp dụng **Capping (Winsorization)** ở phân vị 1% và 99% để "nén" các giá trị cực trị, tránh làm nhiễu các mô hình tuyến tính (Logistic, SVM).
-  - **Biến đổi:** Sử dụng **Power Transformer (Yeo-Johnson)** để đưa về phân phối chuẩn cho các mô hình Bayes và MLP.
+  - **Outlier:** **Giữ lại toàn bộ**. Đây là các mẫu bệnh lý đặc trưng. Áp dụng **Capping (Winsorization)** ở phân vị 1% và 99% để "nén" các giá trị cực trị, tránh làm nhiễu các mô hình tuyến tính (Logistic).
+  - **Biến đổi:** Sử dụng **Power Transformer (Yeo-Johnson)** để đưa về phân phối chuẩn cho các mô hình Bayes.
   - **Scaling:** Bắt buộc dùng **RobustScaler** (tính toán dựa trên Median và IQR) thay vì StandardScaler để bảo vệ các đặc tính của Outliers.
 
   ![](./numeric/NhomA.png)

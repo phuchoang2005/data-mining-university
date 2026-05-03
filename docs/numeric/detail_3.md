@@ -1,5 +1,5 @@
 ## 1. Lọc theo độ tương quan và Đa cộng tuyến (Multicollinearity)
-Trong dữ liệu hình thái, nhiều biến thực chất là "anh em họ" của nhau (ví dụ: `cell_area_px` và `perimeter_px`). Nếu giữ cả hai, các mô hình như **Logistic Regression** hay **SVM** sẽ bị nhiễu.
+Trong dữ liệu hình thái, nhiều biến thực chất là "anh em họ" của nhau (ví dụ: `cell_area_px` và `perimeter_px`). Nếu giữ cả hai, các mô hình như **Logistic Regression** sẽ bị nhiễu.
 
 * **Kỹ thuật: Variance Inflation Factor (VIF).**
     * Nếu một biến có $VIF > 10$, nghĩa là nó có thể được dự đoán từ các biến khác.

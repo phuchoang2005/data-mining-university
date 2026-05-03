@@ -38,7 +38,7 @@ def main():
 
     all_results = {}
 
-    # Train and evaluate ALL 8 models
+    # Train and evaluate ALL 6 models
     for model_name, classifier in models.items():
         print(f"\n{'='*60}")
         print(f"--- Training {model_name} ---")
