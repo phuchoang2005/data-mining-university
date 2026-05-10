@@ -171,7 +171,7 @@ def build_preprocessing_pipeline(config=None):
                 "target_features": [
                     "cell_diameter_um", "cell_area_px", "perimeter_px",
                     "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
-                    "mean_r", "mean_g", "mean_b"
+                    "mean_r", "mean_g", "mean_b", "cell_type"
                 ],
                 "sigma_percentage": 0.01
             },
@@ -193,8 +193,8 @@ def build_preprocessing_pipeline(config=None):
         )),
 
         # Step 13: Feature selection (VIF + Correlation + Mutual Information + RFE)
-        # Config: feature_selection (vif_threshold=10, corr_threshold=0.9, k_best range [15,20], rfe cv=5)
-        ('feature_select', FeatureSelector(vif_threshold=10, corr_threshold=0.9, k_best=20, rfe_cv=5)),
+        # Config: feature_selection (parameters imported from config.yml)
+        ('feature_select', FeatureSelector(config=config)),
 
         # Step 14: Imbalance handling
         # Config: imbalance_handling / data_augmentation.smote (SMOTE-Tomek Links)

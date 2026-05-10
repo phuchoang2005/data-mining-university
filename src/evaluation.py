@@ -8,6 +8,7 @@ from sklearn.metrics import (
 import shap
 from sklearn.inspection import permutation_importance
 import joblib
+import pandas as pd
 from .utils import save_figure, save_json
 
 def evaluate_model(model, X_test, y_test):
@@ -75,11 +76,28 @@ def plot_shap_summary(model, X_test, filepath):
         
         if hasattr(model, 'named_steps'):
             classifier = model.named_steps['classifier']
-            # Transform X_test using all steps except the classifier
-            X_transformed = model[:-1].transform(X_test)
-            # Ensure it's a DataFrame with correct column names
+            # Transform X_test using all transformer steps before the classifier
+            X_transformed = X_test
+            for name, step in model.steps:
+                if name == 'classifier':
+                    break
+                # Only apply steps that have a transform method (skip samplers)
+                if hasattr(step, 'transform'):
+                    X_transformed = step.transform(X_transformed)
+            
+            # Ensure it's a DataFrame for SHAP consistency
             if not isinstance(X_transformed, pd.DataFrame):
-                X_transformed = pd.DataFrame(X_transformed, columns=X_test.columns[model[:-1].get_support()] if hasattr(model[:-1], 'get_support') else None)
+                # Try to get feature names from the last transformer that has them
+                feature_names = None
+                for name, step in reversed(model.steps):
+                    if name == 'classifier': continue
+                    if hasattr(step, 'get_feature_names_out'):
+                        try:
+                            feature_names = step.get_feature_names_out()
+                            break
+                        except:
+                            continue
+                X_transformed = pd.DataFrame(X_transformed, columns=feature_names)
         
         if hasattr(classifier, 'feature_importances_'):  # Tree-based
             explainer = shap.TreeExplainer(classifier)

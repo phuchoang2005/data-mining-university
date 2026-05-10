@@ -14,12 +14,29 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
     """
     Feature Selection handling VIF, Correlation filter, Mutual Information, RFE, and feature importance reporting.
     """
-    def __init__(self, vif_threshold=10, corr_threshold=0.9, k_best=20, rfe_cv=5,
+    def __init__(self, config=None, vif_threshold=None, corr_threshold=None, k_best=None, rfe_cv=None,
                  report_dir="reports/feature_selection"):
-        self.vif_threshold = vif_threshold
-        self.corr_threshold = corr_threshold
-        self.k_best = k_best
-        self.rfe_cv = rfe_cv
+        self.config = config
+        if config and 'feature_selection' in config:
+            fs_cfg = config['feature_selection']
+            self.vif_threshold = vif_threshold if vif_threshold is not None else fs_cfg.get('multicollinearity', {}).get('threshold', 10)
+            self.corr_threshold = corr_threshold if corr_threshold is not None else fs_cfg.get('correlation_filter', {}).get('threshold', 0.9)
+            
+            # Extract k_best from mutual_info.k_range (taking the upper bound if it's a list)
+            mi_cfg = fs_cfg.get('mutual_info', {})
+            k_val = mi_cfg.get('k_range', 20)
+            if k_best is not None:
+                self.k_best = k_best
+            else:
+                self.k_best = k_val[-1] if isinstance(k_val, list) else k_val
+                
+            self.rfe_cv = rfe_cv if rfe_cv is not None else fs_cfg.get('rfe', {}).get('cv_folds', 5)
+        else:
+            self.vif_threshold = vif_threshold if vif_threshold is not None else 10
+            self.corr_threshold = corr_threshold if corr_threshold is not None else 0.9
+            self.k_best = k_best if k_best is not None else 20
+            self.rfe_cv = rfe_cv if rfe_cv is not None else 5
+            
         self.report_dir = report_dir
         self.features_to_drop_ = []
         self.selector_ = None

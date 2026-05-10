@@ -312,7 +312,7 @@ data_augmentation:
   # 1. Gaussian Noise Injection
   gaussian_noise:
     target_groups: ["group_b", "group_c"]
-    target_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b"]
+    target_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b", "cell_type"]
     sigma_percentage: 0.01  # 1-2% of standard deviation
     description: "Simulate measurement errors"
     
