@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail_Crossfeatureinteration - Cell Classification Pipeline</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1;
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+        
+        header .breadcrumb {
+            background: transparent;
+            padding: 1rem 0 0 0;
+        }
+        
+        header .breadcrumb-item {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        header .breadcrumb-item.active {
+            color: white;
+        }
+        
+        header .breadcrumb-item a {
+            color: white;
+        }
+        
+        header .breadcrumb-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 2rem 0;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--primary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        h1 {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 0.3rem;
+        }
+        
+        table {
+            margin: 1.5rem 0;
+        }
+        
+        table thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        code {
+            color: #d63384;
+            background-color: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        pre {
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        
+        pre code {
+            color: #333;
+            padding: 0;
+            background: none;
+        }
+        
+        blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 1.5rem;
+            margin: 1.5rem 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 1.5rem 0;
+            border-radius: 5px;
+        }
+        
+        a {
+            color: var(--primary-color);
+        }
+        
+        a:hover {
+            color: var(--secondary-color);
+        }
+        
+        footer {
+            background-color: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 1.5rem 0;
+            text-align: center;
+            color: #666;
+            margin-top: auto;
+        }
+        
+        .back-link {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔬 Cell Classification Pipeline</h1>
+            <p>Data Mining University - Pre-processing Documentation</p>
+            
+    <nav aria-label="breadcrumb" class="mt-3">
+        <ol class="breadcrumb">
+            <a href="../index.html">Home</a> <span>/</span> <a href="../index.html">Categorical Processing</a> <span>/</span> <span>Detail_Crossfeatureinteration</span>
+        </ol>
+    </nav>
+    
+        </div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <div class="back-link">
+                <a href="index.html" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Index
+                </a>
+            </div>
+            <div class="content">
+                <h2 id="1-tuong-tac-categorical-x-numerical-contextual-features">1. Tương tác Categorical x Numerical (Contextual Features)</h2>
+<p>Đây là hướng bạn đã quan tâm. Mục tiêu là tạo ra sự "nhạy cảm theo ngữ cảnh" cho mô hình.</p>
+<ul>
+<li><strong>Z-score theo Loại tế bào (Grouped Z-score):</strong> Đã đề cập ở phần trước, đây là "vũ khí" mạnh nhất.</li>
+<li><strong>Thực hiện:</strong> Với mỗi mẫu, tính: $$ \frac{Value - Mean_{CellType}}{Std_{CellType}} $$. Áp dụng cho <code>cell_diameter_um</code> và <code>nucleus_area_pct</code>.</li>
+<li><strong>Mã hóa Tương tác (Interaction Encoding):</strong> Kết hợp một biến phân loại quan trọng với một ngưỡng định lượng.</li>
+<li><strong>Ví dụ:</strong> Tạo biến <code>Is_Large_Lymphocyte</code> = 1 nếu (<code>cell_type</code> == 'Lymphocyte' AND <code>cell_area_px</code> &gt; 500), ngược lại = 0.</li>
+<li><strong>Protocol-Adjusted Intensity:</strong> Điều chỉnh cường độ màu sắc dựa trên quy trình nhuộm.</li>
+<li><strong>Công thức:</strong> $$ Adjusted\_Intensity = stain\_intensity \times TargetMean\_StainingProtocol $$</li>
+</ul>
+<h2 id="2-tuong-tac-categorical-x-categorical-feature-crossing">2. Tương tác Categorical x Categorical (Feature Crossing)</h2>
+<p>Khi hai biến phân loại kết hợp với nhau, chúng có thể tạo ra một "ngữ cảnh" hoàn toàn mới.</p>
+<ul>
+<li><strong>Cell-Protocol Cross:</strong> Kết hợp <code>cell_type</code> và <code>staining_protocol</code>.</li>
+<li><strong>Tại sao?</strong> Một loại tế bào <code>Blast_Cell</code> có thể trông rất khác nhau dưới nhuộm <code>Giemsa</code> so với <code>Wright</code>.</li>
+<li><strong>Thực hiện:</strong> Tạo biến mới <code>Cell_Stain = cell_type + "_" + staining_protocol</code>. Sau đó dùng <strong>One-Hot Encoding</strong> cho biến mới này.</li>
+<li>
+<blockquote>
+<p>⚠️ <strong>Lưu ý:</strong> Không dùng Target Encoding cho biến chứa <code>cell_type</code> vì <code>cell_type</code> có mối quan hệ xác định (p=0.0) với <code>anomaly_label</code> — Target Encoding sẽ gây Overfitting.</p>
+</blockquote>
+</li>
+<li><strong>Age-Type Interaction:</strong> Kết hợp <code>patient_age_group</code> và <code>cell_type</code>.</li>
+<li><strong>Tại sao?</strong> Tỷ lệ xuất hiện của các tế bào non (Blast) ở nhóm <code>Pediatric</code> (trẻ em) mang ý nghĩa bệnh lý khác so với nhóm <code>Elderly</code> (người già).</li>
+</ul>
+<h2 id="3-quy-trinh-kiem-chung-validation-workflow-cho-team">3 Quy trình Kiểm chứng (Validation Workflow) cho Team</h2>
+<p>Sau khi Người 2 tạo ra các biến tương tác này, Người 3 và Người 4 cần làm:</p>
+<ol>
+<li><strong>Kiểm tra Tương quan:</strong> Đảm bảo biến tương tác mới không bị tương quan quá mức ($r &gt; 0.95$) với các biến gốc để tránh đa cộng tuyến.</li>
+<li><strong>Đánh giá SHAP:</strong> Sử dụng SHAP để xem mô hình thực sự đánh giá cao biến tương tác nào.<ul>
+<li><em>Ví dụ:</em> Nếu <code>NC_Ratio</code> đứng top 3 quan trọng, hướng đi đó là đúng. Nếu <code>Cell_Stain</code> đứng cuối, có thể bỏ qua để tinh gọn mô hình.</li>
+</ul>
+</li>
+</ol>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p class="mb-0">Generated from Markdown Documentation | Last Updated: May 2026</p>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

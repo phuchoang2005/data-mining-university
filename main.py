@@ -1,12 +1,49 @@
 import os
 import time
+import shutil
+import joblib
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from src.config import load_config
 from src.data_loader import download_and_load_data
 from src.pipeline import build_full_pipeline
 from src.training import get_models, get_param_grids, train_and_tune, save_model
-from src.evaluation import evaluate_model, save_metrics, plot_confusion_matrix, plot_roc_curve
+from src.evaluation import evaluate_model, save_metrics, plot_confusion_matrix, plot_roc_curve, plot_shap_summary, plot_permutation_importance, plot_feature_importance
+
+
+def generate_training_report(all_results, filepath):
+    """Generate training report in Markdown."""
+    report = "# Training Report\n\n"
+    report += "## Model Training Summary\n\n"
+    report += "| Model | Training Time (s) | Best Parameters |\n"
+    report += "|-------|-------------------|----------------|\n"
+    for model, metrics in all_results.items():
+        if "error" not in metrics:
+            time = metrics.get("training_time_seconds", "N/A")
+            params = metrics.get("best_params", "N/A")
+            report += f"| {model} | {time} | {params} |\n"
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, 'w') as f:
+        f.write(report)
+
+def generate_evaluation_report(all_results, best_model, filepath):
+    """Generate evaluation report in Markdown."""
+    report = "# Evaluation Report\n\n"
+    report += f"## Best Model: {best_model}\n\n"
+    report += "## Model Performance Comparison\n\n"
+    report += "| Model | Accuracy | Precision | Recall | F1 Score | ROC AUC |\n"
+    report += "|-------|----------|-----------|--------|----------|---------|\n"
+    for model, metrics in all_results.items():
+        if "error" not in metrics:
+            acc = metrics.get("accuracy", "N/A")
+            prec = metrics.get("precision", "N/A")
+            rec = metrics.get("recall", "N/A")
+            f1 = metrics.get("f1_score", "N/A")
+            auc = metrics.get("roc_auc", "N/A")
+            report += f"| {model} | {acc} | {prec} | {rec} | {f1} | {auc} |\n"
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, 'w') as f:
+        f.write(report)
 
 
 def main():
@@ -48,7 +85,7 @@ def main():
 
         try:
             # Build fresh pipeline for each model
-            full_pipeline = build_full_pipeline(classifier)
+            full_pipeline = build_full_pipeline(classifier, config)
 
             # Train and tune
             start_time = time.time()
@@ -85,6 +122,18 @@ def main():
                     f"reports/{model_name.replace(' ', '_')}_roc_curve.png"
                 )
 
+            # SHAP Summary Plot
+            plot_shap_summary(
+                best_pipeline, X_test,
+                f"reports/{model_name.replace(' ', '_')}_shap_summary.png"
+            )
+
+            # Permutation Importance
+            plot_permutation_importance(
+                best_pipeline, X_test, y_test,
+                f"reports/{model_name.replace(' ', '_')}_permutation_importance.png"
+            )
+
         except Exception as e:
             print(f"ERROR training {model_name}: {e}")
             all_results[model_name] = {"error": str(e)}
@@ -95,16 +144,42 @@ def main():
     print(f"{'='*80}")
 
     results_df = pd.DataFrame(all_results).T
-    print(results_df.to_string())
+    # Export and report the summary in JSON format
+    json_summary = results_df.to_json(orient="index", indent=4)
+    print(json_summary)
+    
+    summary_report_path = "reports/model_comparison_summary.json"
+    os.makedirs(os.path.dirname(summary_report_path), exist_ok=True)
+    with open(summary_report_path, "w") as f:
+        f.write(json_summary)
+    print(f"\nExported model comparison summary to {summary_report_path}")
 
     # Save comparison
     save_metrics(all_results, config['output']['leader']['model_metrics'])
 
-    # Find best model by F1
+    # Find best model by F1, then ROC-AUC
     valid_results = {k: v for k, v in all_results.items() if "error" not in v}
     if valid_results:
-        best_name = max(valid_results, key=lambda k: valid_results[k].get("f1_score", 0))
-        print(f"\nBest model by F1: {best_name} (F1={valid_results[best_name]['f1_score']:.4f})")
+        # Sort by f1_score desc, then roc_auc desc
+        best_name = max(valid_results, key=lambda k: (valid_results[k].get("f1_score", 0), valid_results[k].get("roc_auc", 0)))
+        print(f"\nBest model: {best_name} (F1={valid_results[best_name]['f1_score']:.4f}, ROC-AUC={valid_results[best_name].get('roc_auc', 'N/A')})")
+
+        # Save best model
+        best_model_path = os.path.join(
+            config['output']['leader']['saved_models'],
+            f"{best_name.replace(' ', '_')}.pkl"
+        )
+        best_output_path = config['output']['leader']['best_model']
+        shutil.copy(best_model_path, best_output_path)
+        print(f"Best model saved to {best_output_path}")
+
+        # Feature importance for best model (if tree-based)
+        if hasattr(joblib.load(best_model_path).named_steps['classifier'], 'feature_importances_'):
+            plot_feature_importance(best_model_path, X_test, f"reports/feature_importance.png")
+
+        # Generate reports
+        generate_training_report(all_results, config['output']['leader']['training_report'])
+        generate_evaluation_report(all_results, best_name, config['output']['leader']['evaluation_report'])
 
     print("\nPipeline execution completed successfully!")
 

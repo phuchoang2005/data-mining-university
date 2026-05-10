@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
 
 
 # ── Model name → sklearn class mapping ──────────────────────────────────────
@@ -19,15 +19,10 @@ MODEL_CLASS_MAP = {
     "Logistic Regression": LogisticRegression,
     "Random Forest": RandomForestClassifier,
     "XGBoost": XGBClassifier,
-
-
 }
 
 # Params in config that are metadata, NOT constructor arguments
 _META_PARAMS = {"variant"}
-
-
-
 
 def _coerce_value(v):
     """
@@ -54,10 +49,6 @@ def _prepare_params(name, params):
     """
     clean = {k: _coerce_value(v) for k, v in params.items() if k not in _META_PARAMS}
 
-
-
-
-
     # Logistic Regression: 'lbfgs' does not support l1 penalty.
     # Use 'saga' so GridSearchCV can search both l1 and l2 without errors.
     if name == "Logistic Regression" and clean.get("solver") == "lbfgs":
@@ -79,11 +70,6 @@ def _prepare_hyperparams(name, hyperparams):
 
         # Coerce each value in the list
         values = [_coerce_value(v) for v in values]
-
-
-
-
-
         grid[prefixed] = values
     return grid
 
@@ -128,13 +114,20 @@ def train_and_tune(pipeline, X_train, y_train, param_grid, config):
     """
     Perform GridSearchCV using settings from config['model_training']['hyperparameter_tuning'].
     Reads cv_folds, scoring, and n_jobs from config.yml.
+    Uses StratifiedKFold for cross-validation.
     """
     tuning_cfg = config["model_training"]["hyperparameter_tuning"]
+
+    cv = StratifiedKFold(
+        n_splits=tuning_cfg.get("cv_folds", 5),
+        shuffle=True,
+        random_state=42
+    )
 
     grid_search = GridSearchCV(
         estimator=pipeline,
         param_grid=param_grid,
-        cv=tuning_cfg.get("cv_folds", 5),
+        cv=cv,
         scoring=tuning_cfg.get("scoring", "f1"),
         n_jobs=tuning_cfg.get("n_jobs", -1),
         verbose=1,

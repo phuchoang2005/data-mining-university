@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular_Programming_Guide - Cell Classification Pipeline</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1;
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+        
+        header .breadcrumb {
+            background: transparent;
+            padding: 1rem 0 0 0;
+        }
+        
+        header .breadcrumb-item {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        header .breadcrumb-item.active {
+            color: white;
+        }
+        
+        header .breadcrumb-item a {
+            color: white;
+        }
+        
+        header .breadcrumb-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 2rem 0;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--primary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        h1 {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 0.3rem;
+        }
+        
+        table {
+            margin: 1.5rem 0;
+        }
+        
+        table thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        code {
+            color: #d63384;
+            background-color: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        pre {
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        
+        pre code {
+            color: #333;
+            padding: 0;
+            background: none;
+        }
+        
+        blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 1.5rem;
+            margin: 1.5rem 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 1.5rem 0;
+            border-radius: 5px;
+        }
+        
+        a {
+            color: var(--primary-color);
+        }
+        
+        a:hover {
+            color: var(--secondary-color);
+        }
+        
+        footer {
+            background-color: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 1.5rem 0;
+            text-align: center;
+            color: #666;
+            margin-top: auto;
+        }
+        
+        .back-link {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔬 Cell Classification Pipeline</h1>
+            <p>Data Mining University - Pre-processing Documentation</p>
+            
+    <nav aria-label="breadcrumb" class="mt-3">
+        <ol class="breadcrumb">
+            <a href="index.html">Home</a> <span>/</span> <span>Modular_Programming_Guide</span>
+        </ol>
+    </nav>
+    
+        </div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <div class="back-link">
+                <a href="index.html" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Index
+                </a>
+            </div>
+            <div class="content">
+                <h1 id="guide-to-clean-modular-programming-for-scikit-learn-pipelines">Guide to Clean Modular Programming for Scikit-Learn Pipelines</h1>
+<p>This guide will help your team write clean, modular, and maintainable code for building a full machine learning pipeline in Python using Scikit-Learn, based on your config.yml. It is designed for teams new to modular programming.</p>
+<hr />
+<h2 id="1-why-modular-programming">1. Why Modular Programming?</h2>
+<ul>
+<li><strong>Separation of concerns:</strong> Each file/function/class does one thing well.</li>
+<li><strong>Reusability:</strong> Functions and classes can be reused in different projects or pipeline steps.</li>
+<li><strong>Collaboration:</strong> Team members can work on different modules without conflicts.</li>
+<li><strong>Testing:</strong> Easier to test and debug small, focused modules.</li>
+</ul>
+<hr />
+<h2 id="2-recommended-project-structure">2. Recommended Project Structure</h2>
+<pre class="codehilite"><code class="language-text">project_root/
+│
+├── data/                  # Raw and processed data
+├── models/                # Saved models
+├── reports/               # Evaluation reports and plots
+├── config.yml             # Your pipeline configuration
+├── main.py                # Entry point to run the pipeline
+├── requirements.txt       # Python dependencies
+├── docs/                  # Documentation
+│   └── modular_programming.md
+└── src/                   # All source code modules
+    ├── __init__.py
+    ├── config.py          # Load and parse config.yml
+    ├── data_loader.py     # Data loading and validation
+    ├── preprocessing/     # Preprocessing steps
+    │   ├── __init__.py
+    │   ├── numeric.py     # Numeric feature processing
+    │   ├── categorical.py # Categorical feature processing
+    │   ├── feature_eng.py # Feature engineering
+    │   ├── clustering.py  # Clustering for multi-modality
+    │   └── augmentation.py# Data augmentation
+    ├── selection.py       # Feature selection
+    ├── imbalance.py       # Class imbalance handling
+    ├── training.py        # Model training and tuning
+    ├── evaluation.py      # Model evaluation and reporting
+    └── utils.py           # Utility functions
+</code></pre>
+
+<hr />
+<h2 id="3-how-to-write-modular-code">3. How to Write Modular Code</h2>
+<h3 id="a-one-function-one-responsibility">a. One Function = One Responsibility</h3>
+<ul>
+<li>Each function should do one thing (e.g., <code>def cap_outliers(df, features, method, percentiles): ...</code>).</li>
+<li>Avoid long functions that mix multiple steps.</li>
+</ul>
+<h3 id="b-use-classes-for-pipeline-steps">b. Use Classes for Pipeline Steps</h3>
+<ul>
+<li>For complex steps (e.g., custom transformers), use classes that inherit from <code>BaseEstimator</code> and <code>TransformerMixin</code>.</li>
+<li>Example:</li>
+</ul>
+<pre class="codehilite"><code class="language-python">from sklearn.base import BaseEstimator, TransformerMixin
+
+class OutlierCapper(BaseEstimator, TransformerMixin):
+    def __init__(self, features, method='winsorization', percentiles=(1, 99)):
+        ...
+    def fit(self, X, y=None):
+        ...
+    def transform(self, X):
+        ...
+</code></pre>
+
+<h3 id="c-use-scikit-learn-pipelines">c. Use Scikit-Learn Pipelines</h3>
+<ul>
+<li>Chain steps using <code>Pipeline</code> and <code>ColumnTransformer</code>.</li>
+<li>Example:</li>
+</ul>
+<pre class="codehilite"><code class="language-python">from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+
+numeric_pipeline = Pipeline([
+    ('cap', OutlierCapper(...)),
+    ('scale', RobustScaler()),
+])
+
+full_pipeline = ColumnTransformer([
+    ('num', numeric_pipeline, numeric_features),
+    ('cat', categorical_pipeline, categorical_features),
+])
+</code></pre>
+
+<h3 id="d-configuration-driven-code">d. Configuration-Driven Code</h3>
+<ul>
+<li>Read parameters (features, thresholds, model settings) from <code>config.yml</code> using a loader (e.g., <code>pyyaml</code>).</li>
+<li>Avoid hardcoding feature names or parameters in your code.</li>
+</ul>
+<h3 id="e-keep-each-module-small">e. Keep Each Module Small</h3>
+<ul>
+<li>Each file in <code>src/</code> should be &lt;200 lines if possible.</li>
+<li>Split large logic into submodules (e.g., <code>preprocessing/</code> folder).</li>
+</ul>
+<h3 id="f-use-docstrings-and-type-hints">f. Use Docstrings and Type Hints</h3>
+<ul>
+<li>Every function/class should have a docstring explaining its purpose and arguments.</li>
+<li>Use type hints for clarity.</li>
+</ul>
+<hr />
+<h2 id="4-example-numeric-preprocessing-module-srcpreprocessingnumericpy">4. Example: Numeric Preprocessing Module (src/preprocessing/numeric.py)</h2>
+<pre class="codehilite"><code class="language-python">&quot;&quot;&quot;
+Numeric feature processing: outlier capping, transformation, scaling
+&quot;&quot;&quot;
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.preprocessing import RobustScaler, PowerTransformer
+
+class NumericPreprocessor(BaseEstimator, TransformerMixin):
+    def __init__(self, config):
+        self.config = config
+    def fit(self, X, y=None):
+        # Fit scalers/transformers as needed
+        ...
+    def transform(self, X):
+        # Apply capping, transformation, scaling
+        ...
+</code></pre>
+
+<hr />
+<h2 id="5-collaboration-tips">5. Collaboration Tips</h2>
+<ul>
+<li><strong>Agree on interfaces:</strong> Document what each function/class expects and returns.</li>
+<li><strong>Write tests:</strong> Use <code>pytest</code> or similar to test each module.</li>
+<li><strong>Use version control:</strong> Commit often, use branches for features.</li>
+<li><strong>Document everything:</strong> Keep <code>README.md</code> and module docstrings up to date.</li>
+</ul>
+<hr />
+<h2 id="6-final-pipeline-assembly-mainpy">6. Final Pipeline Assembly (main.py)</h2>
+<ul>
+<li>Import all modules and assemble the pipeline using Scikit-Learn's <code>Pipeline</code> and <code>ColumnTransformer</code>.</li>
+<li>Load config, run each step, and save outputs as specified in <code>config.yml</code>.</li>
+</ul>
+<hr />
+<h2 id="7-references">7. References</h2>
+<ul>
+<li><a href="https://scikit-learn.org/stable/modules/compose.html">Scikit-Learn Pipeline Documentation</a></li>
+<li><a href="https://scikit-learn.org/stable/developers/develop.html">Scikit-Learn Custom Transformers</a></li>
+<li><a href="https://pyyaml.org/wiki/PyYAMLDocumentation">PyYAML for config loading</a></li>
+</ul>
+<hr />
+<p><strong>By following this structure, your team will be able to work in parallel, keep code clean, and easily assemble a robust, reproducible pipeline.</strong></p>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p class="mb-0">Generated from Markdown Documentation | Last Updated: May 2026</p>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

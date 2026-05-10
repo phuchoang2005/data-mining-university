@@ -19,7 +19,7 @@ from .selection import FeatureSelector
 from .utils import ColumnDropper
 
 
-def build_preprocessing_pipeline():
+def build_preprocessing_pipeline(config=None):
     """
     Builds the end-to-end preprocessing pipeline.
     Matches config.yml pipeline_order (steps 1-14):
@@ -145,9 +145,9 @@ def build_preprocessing_pipeline():
         )),
 
         # Step 7: Categorical encoding
-        # Config: categorical_features (OHE: cell_type, staining_protocol, patient_sex;
+        # Config: categorical_features (Target: cell_type; OHE: staining_protocol, patient_sex;
         #         Ordinal: patient_age_group; Drop handled in step 3)
-        ('categorical_proc', CategoricalProcessor()),
+        ('categorical_proc', CategoricalProcessor(config=config)),
 
         # Step 8: Drop utility columns no longer needed
         ('drop_utility', ColumnDropper(columns=[
@@ -160,8 +160,8 @@ def build_preprocessing_pipeline():
         ('numeric_ct', numeric_ct),
 
         # Step 10: GMM clustering
-        # Config: clustering (GMM, 4 components, 6 features)
-        ('gmm_cluster', GMMClusterer(n_components=4)),
+        # Config: clustering (GMM, optimal in [3,5] via BIC)
+        ('gmm_cluster', GMMClusterer(n_components_range=(3, 5))),
 
         # Step 11: Gaussian noise augmentation
         # Config: data_augmentation.gaussian_noise (Group B & C features, sigma 1%)
@@ -192,9 +192,9 @@ def build_preprocessing_pipeline():
             validate=False
         )),
 
-        # Step 13: Feature selection (Correlation + Mutual Information)
-        # Config: feature_selection (corr_threshold=0.9, k_best range [15,20])
-        ('feature_select', FeatureSelector(corr_threshold=0.9, k_best=20)),
+        # Step 13: Feature selection (VIF + Correlation + Mutual Information + RFE)
+        # Config: feature_selection (vif_threshold=10, corr_threshold=0.9, k_best range [15,20], rfe cv=5)
+        ('feature_select', FeatureSelector(vif_threshold=10, corr_threshold=0.9, k_best=20, rfe_cv=5)),
 
         # Step 14: Imbalance handling
         # Config: imbalance_handling / data_augmentation.smote (SMOTE-Tomek Links)
@@ -204,8 +204,8 @@ def build_preprocessing_pipeline():
     return full_pipeline
 
 
-def build_full_pipeline(classifier):
+def build_full_pipeline(classifier, config=None):
     """Combines preprocessing pipeline with a classifier (flat, no nesting)."""
-    preprocessor = build_preprocessing_pipeline()
+    preprocessor = build_preprocessing_pipeline(config=config)
     steps = preprocessor.steps + [('classifier', classifier)]
     return ImbPipeline(steps)

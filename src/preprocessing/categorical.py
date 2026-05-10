@@ -6,36 +6,38 @@ from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 
 class CategoricalProcessor(BaseEstimator, TransformerMixin):
     """
-    Handle categorical features: encoding only.
-    Column dropping is handled by ColumnDropper in the pipeline.
-
-    WHY One-Hot Encoding for cell_type instead of Target Encoding:
+    Handle categorical features: encoding with Target Encoding for cell_type.
+    
+    WHY Target Encoding with Smoothing for cell_type:
     ─────────────────────────────────────────────────────────────
-    In this dataset, cell_type has a near-deterministic relationship with
-    anomaly_label (p_value = 0.0). Target Encoding replaces each cell type
-    with a value derived from the target (mean of anomaly_label per type).
-
-    Even with sklearn's internal CV and Bayesian smoothing, the encoded value
-    is essentially the probability of being anomalous for that cell type.
-    When the relationship is deterministic (each cell type maps 100% to 0 or 1),
-    the encoded column becomes a near-perfect copy of the target — regardless
-    of smoothing or CV folds — because the signal is too strong to regularize.
-
-    One-Hot Encoding avoids this by encoding cell type IDENTITY (binary
-    indicators) without embedding ANY target information. The model must then
-    learn the cell_type → anomaly relationship from the other features in
-    combination with the OHE indicators, which produces genuine generalization.
+    Although cell_type has a near-deterministic relationship with anomaly_label 
+    (p_value = 0.0), Target Encoding with smoothing can be used to encode it 
+    without severe overfitting. Smoothing blends the category-specific mean 
+    with the global mean, reducing the risk of memorizing the target.
+    
+    Formula: smoothed_mean = (count * category_mean + alpha * global_mean) / (count + alpha)
+    Higher alpha provides more regularization.
     """
 
-    def __init__(self, config=None, rare_threshold=0.02):
+    def __init__(self, config=None, rare_threshold=0.02, smoothing_alpha=None):
         self.config = config
         self.rare_threshold = rare_threshold
+        if smoothing_alpha is None:
+            if config and 'categorical_features' in config and 'cell_type' in config['categorical_features']:
+                self.smoothing_alpha = config['categorical_features']['cell_type'].get('smoothing_alpha', 10)
+            else:
+                self.smoothing_alpha = 10
+        else:
+            self.smoothing_alpha = smoothing_alpha
         self.ohe = None
         self.ordinal_encoder = None
+        self.target_encoder_map = {}
+        self.global_mean = None
         self.rare_categories_ = None
 
-        # cell_type uses OHE — see docstring for rationale
-        self.ohe_cols = ["cell_type", "staining_protocol", "patient_sex"]
+        # cell_type uses Target Encoding with smoothing
+        self.target_cols = ["cell_type"]
+        self.ohe_cols = ["staining_protocol", "patient_sex"]
         self.ordinal_cols = ["patient_age_group"]
 
     def _group_rare_types(self, X_df):
@@ -50,16 +52,28 @@ class CategoricalProcessor(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         X_df = pd.DataFrame(X).copy()
+        if y is None:
+            raise ValueError("y is required for target encoding")
+
+        # Compute global mean
+        self.global_mean = y.mean()
 
         # Learn rare cell type categories
         if 'cell_type' in X_df.columns:
             freq = X_df['cell_type'].value_counts(normalize=True)
             self.rare_categories_ = freq[freq < self.rare_threshold].index.tolist()
 
-        # Group rare types before fitting OHE
+        # Group rare types before computing target encoding
         X_df = self._group_rare_types(X_df)
 
-        # Fit One Hot Encoder
+        # Compute target encoding for cell_type
+        if 'cell_type' in X_df.columns:
+            grouped = pd.DataFrame({'cell_type': X_df['cell_type'], 'target': y}).groupby('cell_type')
+            stats = grouped.agg(count=('target', 'size'), mean=('target', 'mean'))
+            stats['smoothed'] = (stats['count'] * stats['mean'] + self.smoothing_alpha * self.global_mean) / (stats['count'] + self.smoothing_alpha)
+            self.target_encoder_map = stats['smoothed'].to_dict()
+
+        # Fit One Hot Encoder for other columns
         cols_to_ohe = [c for c in self.ohe_cols if c in X_df.columns]
         if cols_to_ohe:
             self.ohe = OneHotEncoder(
@@ -85,7 +99,11 @@ class CategoricalProcessor(BaseEstimator, TransformerMixin):
         # Group rare types
         X_df = self._group_rare_types(X_df)
 
-        # Apply One Hot Encoding
+        # Apply Target Encoding for cell_type
+        if 'cell_type' in X_df.columns and self.target_encoder_map:
+            X_df['cell_type'] = X_df['cell_type'].map(self.target_encoder_map).fillna(self.global_mean)
+
+        # Apply One Hot Encoding for other columns
         if self.ohe is not None:
             cols_to_ohe = [c for c in self.ohe_cols if c in X_df.columns]
             if cols_to_ohe:

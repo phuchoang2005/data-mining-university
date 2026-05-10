@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Numeric Processing - Cell Classification Pipeline</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1;
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+        
+        header .breadcrumb {
+            background: transparent;
+            padding: 1rem 0 0 0;
+        }
+        
+        header .breadcrumb-item {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        header .breadcrumb-item.active {
+            color: white;
+        }
+        
+        header .breadcrumb-item a {
+            color: white;
+        }
+        
+        header .breadcrumb-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 2rem 0;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--primary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        h1 {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 0.3rem;
+        }
+        
+        table {
+            margin: 1.5rem 0;
+        }
+        
+        table thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        code {
+            color: #d63384;
+            background-color: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        pre {
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        
+        pre code {
+            color: #333;
+            padding: 0;
+            background: none;
+        }
+        
+        blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 1.5rem;
+            margin: 1.5rem 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 1.5rem 0;
+            border-radius: 5px;
+        }
+        
+        a {
+            color: var(--primary-color);
+        }
+        
+        a:hover {
+            color: var(--secondary-color);
+        }
+        
+        footer {
+            background-color: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 1.5rem 0;
+            text-align: center;
+            color: #666;
+            margin-top: auto;
+        }
+        
+        .back-link {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔬 Cell Classification Pipeline</h1>
+            <p>Data Mining University - Pre-processing Documentation</p>
+            
+    <nav aria-label="breadcrumb" class="mt-3">
+        <ol class="breadcrumb">
+            <a href="index.html">Home</a> <span>/</span> <span>Numeric Processing</span>
+        </ol>
+    </nav>
+    
+        </div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <div class="back-link">
+                <a href="index.html" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Index
+                </a>
+            </div>
+            <div class="content">
+                <h2 id="1-nhom-a-hinh-thai-benh-ly-tin-hieu-vang">1. Nhóm A: Hình thái &amp; Bệnh lý (Tín hiệu Vàng)</h2>
+<ul>
+<li><strong>Đặc trưng phân phối:</strong></li>
+<li><strong>Phân tách (Separability):</strong> Rất tốt. Nhãn 0 và 1 có vùng phân phối tách biệt rõ rệt (đặc biệt là <code>eccentricity</code> và <code>lobularity_score</code>).</li>
+<li><strong>Hình dạng:</strong> Lệch nặng (Skewed), xuất hiện dải Outliers dài và dày đặc trong Boxplot.</li>
+<li><strong>Kết luận hướng xử lý:</strong></li>
+<li><strong>Outlier:</strong> <strong>Giữ lại toàn bộ</strong>. Đây là các mẫu bệnh lý đặc trưng. Áp dụng <strong>Capping (Winsorization)</strong> ở phân vị 1% và 99% để "nén" các giá trị cực trị, tránh làm nhiễu các mô hình tuyến tính (Logistic).</li>
+<li><strong>Biến đổi:</strong> Sử dụng <strong>Power Transformer (Yeo-Johnson)</strong> để đưa về phân phối chuẩn cho các mô hình Bayes.</li>
+<li><strong>Scaling:</strong> Bắt buộc dùng <strong>RobustScaler</strong> (tính toán dựa trên Median và IQR) thay vì StandardScaler để bảo vệ các đặc tính của Outliers.</li>
+</ul>
+<p><img alt="" src="./numeric/NhomA.png" /></p>
+<h2 id="2-nhom-b-ac-iem-hinh-thai-hoc-a-inh">2. Nhóm B: Đặc điểm Hình thái học (Đa đỉnh)</h2>
+<ul>
+<li><strong>Đặc trưng phân phối:</strong></li>
+<li><strong>Phân tách:</strong> Trung bình. Có sự chồng lấp giữa hai nhãn, cần kết hợp nhiều biến mới có thể phân loại tốt.</li>
+<li><strong>Hình dạng:</strong> Đa đỉnh (Multi-modal), cho thấy sự hiện diện của nhiều quần thể tế bào khác nhau. Skewness vừa phải.</li>
+<li><strong>Kết luận hướng xử lý:</strong></li>
+<li><strong>Outlier:</strong> Xử lý bằng <strong>Capping</strong> hoặc giữ nguyên (nếu dùng các mô hình họ Cây như XGBoost).</li>
+<li><strong>Biến đổi:</strong> Có thể giữ nguyên phân phối đa đỉnh hoặc dùng <strong>QuantileTransformer</strong> nếu bạn muốn đưa về phân phối đều (Uniform) hoặc chuẩn để mô hình dễ hội tụ hơn.</li>
+<li><strong>Scaling:</strong> <strong>StandardScaler</strong> (Z-score).</li>
+</ul>
+<p><img alt="" src="./numeric/NhomB.png" /></p>
+<h2 id="3-nhom-c-chi-so-huyet-hoc-nhieu-ky-thuat">3. Nhóm C: Chỉ số Huyết học &amp; Nhiễu kỹ thuật</h2>
+<ul>
+<li><strong>Đặc trưng phân phối:</strong></li>
+<li><strong>Phân tách:</strong> Rất kém. KDE chồng khít hoàn toàn, không có khả năng phân loại nhãn ở cấp độ tế bào.</li>
+<li><strong>Hình dạng:</strong> Đối xứng, gần với phân phối Gauss (chuẩn). Outliers thưa thớt và rời rạc.</li>
+<li><strong>Kết luận hướng xử lý:</strong></li>
+<li><strong>Outlier:</strong> <strong>Xóa bỏ (Trimming)</strong> các mẫu nằm ngoài ngưỡng $1.5 \times IQR$. Đây chủ yếu là lỗi đo đạc hoặc nhiễu thiết bị.</li>
+<li><strong>Scaling:</strong> <strong>Min-Max Scaler</strong>.</li>
+<li><strong>Lưu ý:</strong> Nếu tài nguyên tính toán hạn chế, có thể xem xét loại bỏ bớt các biến này (Feature Selection) vì chúng đóng góp rất ít vào độ chính xác của mô hình phân loại tế bào.</li>
+</ul>
+<p><img alt="" src="./numeric/NhomC.png" /></p>
+<h2 id="4-nhom-d-iem-tin-cay-thuat-toan">4. Nhóm D: Điểm tin cậy &amp; Thuật toán</h2>
+<ul>
+<li><strong>Đặc trưng phân phối:</strong></li>
+<li><strong>Phân tách:</strong> <code>anomaly_score</code> tách biệt 100% (Dấu hiệu của rò rỉ dữ liệu). <code>confidence</code> lệch trái (người dán nhãn tự tin vào các mẫu bình thường hơn).</li>
+<li><strong>Kết luận hướng xử lý:</strong></li>
+<li><strong>Loại bỏ:</strong> <strong>Drop cột <code>cytodiffusion_anomaly_score</code></strong> và <strong><code>cytodiffusion_classification_confidence</code></strong> để tránh rò rỉ dữ liệu (cả hai đều từ hệ thống cytodiffusion đã phân loại anomaly).</li>
+<li><strong>Lọc dữ liệu:</strong> Sử dụng <code>labeller_confidence_score</code> để lọc bỏ các hàng có độ tin cậy thấp (&lt; 0.5), sau đó <strong>drop cột</strong> này (meta-feature, không phải thuộc tính tế bào).</li>
+</ul>
+<p><img alt="" src="./numeric/NhomD.png" /></p>
+<hr />
+<h3 id="bang-tom-tat-thuc-thi-nhanh">Bảng tóm tắt thực thi nhanh</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Thành phần xử lý</th>
+<th style="text-align: left;">Nhóm A (Vàng)</th>
+<th style="text-align: left;">Nhóm B (Hình thái)</th>
+<th style="text-align: left;">Nhóm C (Nhiễu/Huyết học)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Xử lý Outlier</strong></td>
+<td style="text-align: left;">Capping (Giữ lại)</td>
+<td style="text-align: left;">Capping</td>
+<td style="text-align: left;">Trimming (Xóa)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Biến đổi Skew</strong></td>
+<td style="text-align: left;">Yeo-Johnson</td>
+<td style="text-align: left;">QuantileTransformer</td>
+<td style="text-align: left;">Không cần</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phương pháp Scaling</strong></td>
+<td style="text-align: left;"><strong>RobustScaler</strong></td>
+<td style="text-align: left;">StandardScaler</td>
+<td style="text-align: left;"><strong>Min-Max Scaler</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Tầm quan trọng</strong></td>
+<td style="text-align: left;">Rất cao</td>
+<td style="text-align: left;">Cao</td>
+<td style="text-align: left;">Thấp</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="xu-ly-nhan-muc-tieu-anomaly_label">Xử lý nhãn mục tiêu (<code>anomaly_label</code>)</h3>
+<p>Vì Skewness nhãn là <code>0.77</code>, tập dữ liệu của bạn đang bị lệch (Imbalanced).</p>
+<ul>
+<li><strong>Chiến lược:</strong> Sử dụng <strong>Stratified Shuffle Split</strong> khi chia tập Train/Test để đảm bảo tỷ lệ nhãn bất thường đồng đều ở cả hai tập.</li>
+</ul>
+<p><a href="./numeric/advanced-numeric-processing.md">Chi tiết xử lý</a></p>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p class="mb-0">Generated from Markdown Documentation | Last Updated: May 2026</p>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

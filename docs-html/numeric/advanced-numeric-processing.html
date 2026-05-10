@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Numeric Processing - Cell Classification Pipeline</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1;
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+        
+        header .breadcrumb {
+            background: transparent;
+            padding: 1rem 0 0 0;
+        }
+        
+        header .breadcrumb-item {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        header .breadcrumb-item.active {
+            color: white;
+        }
+        
+        header .breadcrumb-item a {
+            color: white;
+        }
+        
+        header .breadcrumb-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 2rem 0;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--primary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        h1 {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 0.3rem;
+        }
+        
+        table {
+            margin: 1.5rem 0;
+        }
+        
+        table thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        code {
+            color: #d63384;
+            background-color: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        pre {
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        
+        pre code {
+            color: #333;
+            padding: 0;
+            background: none;
+        }
+        
+        blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 1.5rem;
+            margin: 1.5rem 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 1.5rem 0;
+            border-radius: 5px;
+        }
+        
+        a {
+            color: var(--primary-color);
+        }
+        
+        a:hover {
+            color: var(--secondary-color);
+        }
+        
+        footer {
+            background-color: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 1.5rem 0;
+            text-align: center;
+            color: #666;
+            margin-top: auto;
+        }
+        
+        .back-link {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔬 Cell Classification Pipeline</h1>
+            <p>Data Mining University - Pre-processing Documentation</p>
+            
+    <nav aria-label="breadcrumb" class="mt-3">
+        <ol class="breadcrumb">
+            <a href="../index.html">Home</a> <span>/</span> <a href="../index.html">Numeric Processing</a> <span>/</span> <span>Advanced Numeric Processing</span>
+        </ol>
+    </nav>
+    
+        </div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <div class="back-link">
+                <a href="index.html" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Index
+                </a>
+            </div>
+            <div class="content">
+                <h2 id="1-feature-engineering-tao-ac-trung-dua-tren-kien-thuc-mien-domain-knowledge">1. Feature Engineering: Tạo đặc trưng dựa trên kiến thức miền (Domain Knowledge)</h2>
+<p>Mặc dù bạn đã có khá nhiều đặc trưng, nhưng việc tạo ra các biến tương tác có thể giúp mô hình phi tuyến tính bắt trọn các dấu hiệu bệnh lý:</p>
+<ul>
+<li><strong>Chuẩn hóa kích thước theo Độ phóng đại:</strong> Các biến <code>cell_area_px</code> và <code>perimeter_px</code> phụ thuộc vào <code>magnification_x</code>. Bạn nên tạo ra các đặc trưng thực tế bằng cách quy đổi:<br />
+    $$\text{Actual Area} = \frac{\text{cell_area_px}}{(\text{magnification_x})^2}$$<br />
+    Việc này giúp mô hình đồng nhất dữ liệu dù ảnh được chụp ở độ phóng đại 40x hay 100x.</li>
+<li><strong>Tỷ lệ tương phản màu sắc:</strong> Thay vì chỉ dùng <code>mean_r, g, b</code> riêng lẻ, hãy tạo ra các tỷ lệ như $R/G$ hoặc $G/B$. Trong huyết học, sự thay đổi sắc thái (ví dụ: tế bào bắt màu kiềm hoặc ưa acid) là một chỉ số phân loại cực mạnh.</li>
+</ul>
+<p><a href="detail_1.md">Chi tiết</a></p>
+<h2 id="2-xu-ly-phan-phoi-a-inh-multi-modality-bang-clustering">2. Xử lý phân phối đa đỉnh (Multi-modality) bằng Clustering</h2>
+<p>Như bạn thấy ở Nhóm B, các biến có nhiều đỉnh (do chứa nhiều loại tế bào khác nhau). <br />
+* <strong>Chiến lược:</strong> Sử dụng thuật toán <strong>K-Means</strong> hoặc <strong>Gaussian Mixture Models (GMM)</strong> để gom cụm các tế bào dựa trên hình thái (<code>cell_area</code>, <code>nucleus_area</code>).<br />
+* <strong>Ứng dụng:</strong> Thêm nhãn cụm (Cluster ID) này như một đặc trưng đầu vào. Việc này "mách" cho mô hình biết tế bào này thuộc nhóm kích thước nào trước khi thực hiện phân loại nhị nguyên.</p>
+<p><a href="detail_2.md">Chi tiết</a></p>
+<h2 id="3-lua-chon-ac-trung-feature-selection-chuyen-sau">3. Lựa chọn đặc trưng (Feature Selection) chuyên sâu</h2>
+<p>Đừng chỉ giữ lại tất cả các biến. Như phân tích KDE ở Nhóm C, nhiều biến huyết học (<code>wbc_count</code>, <code>rbc_count</code>) có khả năng phân tách bằng 0.<br />
+* <strong>Recursive Feature Elimination (RFE):</strong> Sử dụng Random Forest hoặc XGBoost để loại bỏ dần các đặc trưng ít quan trọng nhất.<br />
+* <strong>Mutual Information:</strong> Tính toán độ phụ thuộc thông tin giữa các biến đầu vào và <code>anomaly_label</code>. Những biến có điểm Mutual Information thấp nên được loại bỏ để giảm nhiễu và tránh hiện tượng <strong>Curse of Dimensionality</strong> (Lời nguyền đa chiều).</p>
+<p><a href="detail_3.md">Chi tiết</a></p>
+<h2 id="4-xu-ly-mat-can-bang-nhan-advanced-imbalance-handling">4. Xử lý mất cân bằng nhãn (Advanced Imbalance Handling)</h2>
+<p>Với <code>anomaly_label</code> có Skewness 0.77, dữ liệu của bạn đang lệch. Ngoài việc dùng SMOTE thông thường, hãy thử:<br />
+* <strong>SMOTE-Tomek Links:</strong> Kết hợp tạo mẫu ảo (Oversampling) và xóa các mẫu gây nhiễu ở biên giới giữa hai lớp (Undersampling). Điều này giúp đường biên phân loại của các mô hình như KNN trở nên "sạch" hơn.<br />
+* <strong>Cost-sensitive Learning:</strong> Thay vì thay đổi dữ liệu, hãy gán "hình phạt" nặng hơn cho mô hình khi dự đoán sai lớp Bất thường (Nhãn 1).</p>
+<h2 id="5-tang-cuong-du-lieu-bang-dich-chuyen-phan-phoi-distribution-shifting">5. Tăng cường dữ liệu bằng "Dịch chuyển phân phối" (Distribution Shifting)</h2>
+<p>Nếu tập dữ liệu nhỏ, bạn có thể áp dụng các kỹ thuật mô phỏng nhiễu:<br />
+* <strong>Thêm nhiễu Gaussian nhẹ</strong> vào các đặc trưng Nhóm B để mô hình trở nên bền bỉ hơn (robust) với các sai số đo đạc nhỏ của thiết bị.<br />
+* <strong>Chuẩn hóa theo Staining Protocol:</strong> Nếu bạn phát hiện <code>staining_protocol</code> ảnh hưởng đến <code>mean_r, g, b</code>, hãy thực hiện <strong>Group-wise Scaling</strong> (chuẩn hóa riêng biệt cho từng nhóm quy trình nhuộm) để đưa tất cả về cùng một không gian màu sắc tham chiếu.</p>
+<p><a href="detail_5.md">Chi tiết</a></p>
+<hr />
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p class="mb-0">Generated from Markdown Documentation | Last Updated: May 2026</p>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

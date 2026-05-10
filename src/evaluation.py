@@ -1,4 +1,3 @@
-import os
 import json
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -6,6 +5,10 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
     confusion_matrix, roc_curve
 )
+import shap
+from sklearn.inspection import permutation_importance
+import joblib
+from .utils import save_figure, save_json
 
 def evaluate_model(model, X_test, y_test):
     """
@@ -37,10 +40,7 @@ def plot_confusion_matrix(y_test, y_pred, filepath):
     plt.title('Confusion Matrix')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    plt.tight_layout()
-    plt.savefig(filepath)
-    plt.close()
+    save_figure(plt.gcf(), filepath)
 
 def plot_roc_curve(y_test, y_prob, filepath):
     """Plot and save ROC curve."""
@@ -60,13 +60,82 @@ def plot_roc_curve(y_test, y_prob, filepath):
     plt.title('Receiver Operating Characteristic')
     plt.legend(loc="lower right")
     
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    plt.tight_layout()
-    plt.savefig(filepath)
-    plt.close()
+    save_figure(plt.gcf(), filepath)
 
 def save_metrics(metrics, filepath):
     """Save metrics to JSON."""
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    with open(filepath, 'w') as f:
-        json.dump(metrics, f, indent=4)
+    save_json(metrics, filepath)
+
+def plot_shap_summary(model, X_test, filepath):
+    """Plot SHAP summary plot."""
+    try:
+        # If it's a pipeline, extract the classifier and transform X_test
+        classifier = model
+        X_transformed = X_test
+        
+        if hasattr(model, 'named_steps'):
+            classifier = model.named_steps['classifier']
+            # Transform X_test using all steps except the classifier
+            X_transformed = model[:-1].transform(X_test)
+            # Ensure it's a DataFrame with correct column names
+            if not isinstance(X_transformed, pd.DataFrame):
+                X_transformed = pd.DataFrame(X_transformed, columns=X_test.columns[model[:-1].get_support()] if hasattr(model[:-1], 'get_support') else None)
+        
+        if hasattr(classifier, 'feature_importances_'):  # Tree-based
+            explainer = shap.TreeExplainer(classifier)
+        else:
+            explainer = shap.Explainer(classifier, X_transformed)
+            
+        shap_values = explainer(X_transformed)
+        
+        plt.figure(figsize=(10, 8))
+        if isinstance(shap_values, shap.Explanation):
+            if len(shap_values.shape) == 3:
+                # Multi-class: slice to positive class if binary (2 classes), else plot bar
+                if shap_values.shape[2] == 2:
+                    shap.summary_plot(shap_values[:, :, 1], show=False)
+                else:
+                    shap.summary_plot(shap_values, show=False)
+            else:
+                shap.summary_plot(shap_values, show=False)
+        else:
+            # Old format (list of arrays)
+            if isinstance(shap_values, list) and len(shap_values) == 2:
+                shap.summary_plot(shap_values[1], X_transformed, show=False)
+            else:
+                shap.summary_plot(shap_values, X_transformed, show=False)
+                
+        save_figure(plt.gcf(), filepath)
+    except Exception as e:
+        print(f"SHAP summary plot failed: {e}")
+
+def plot_permutation_importance(model, X_test, y_test, filepath):
+    """Plot permutation importance."""
+    try:
+        perm_importance = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, scoring='f1')
+        sorted_idx = perm_importance.importances_mean.argsort()
+        plt.figure(figsize=(10, 6))
+        plt.barh(range(len(sorted_idx)), perm_importance.importances_mean[sorted_idx])
+        plt.yticks(range(len(sorted_idx)), X_test.columns[sorted_idx])
+        plt.xlabel("Permutation Importance")
+        plt.title("Permutation Importance (F1 Score)")
+        save_figure(plt.gcf(), filepath)
+    except Exception as e:
+        print(f"Permutation importance plot failed: {e}")
+
+def plot_feature_importance(model_path, X_test, filepath):
+    """Plot feature importance for tree-based models."""
+    try:
+        model = joblib.load(model_path)
+        classifier = model.named_steps['classifier']
+        if hasattr(classifier, 'feature_importances_'):
+            importances = classifier.feature_importances_
+            indices = importances.argsort()[::-1]
+            plt.figure(figsize=(10, 6))
+            plt.barh(range(len(indices)), importances[indices])
+            plt.yticks(range(len(indices)), X_test.columns[indices])
+            plt.xlabel("Feature Importance")
+            plt.title("Feature Importance")
+            save_figure(plt.gcf(), filepath)
+    except Exception as e:
+        print(f"Feature importance plot failed: {e}")
