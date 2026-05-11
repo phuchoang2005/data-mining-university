@@ -8,9 +8,6 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 
-from sklearn.model_selection import GridSearchCV, StratifiedKFold
-
-
 # ── Model name → sklearn class mapping ──────────────────────────────────────
 MODEL_CLASS_MAP = {
     "Decision Tree": DecisionTreeClassifier,
@@ -110,31 +107,12 @@ def get_param_grids(config):
     return grids
 
 
-def train_and_tune(pipeline, X_train, y_train, param_grid, config):
+def train(pipeline, X_train, y_train):
     """
-    Perform GridSearchCV using settings from config['model_training']['hyperparameter_tuning'].
-    Reads cv_folds, scoring, and n_jobs from config.yml.
-    Uses StratifiedKFold for cross-validation.
+    Train the pipeline on the training data with fixed hyperparameters.
     """
-    tuning_cfg = config["model_training"]["hyperparameter_tuning"]
-
-    cv = StratifiedKFold(
-        n_splits=tuning_cfg.get("cv_folds", 5),
-        shuffle=True,
-        random_state=42
-    )
-
-    grid_search = GridSearchCV(
-        estimator=pipeline,
-        param_grid=param_grid,
-        cv=cv,
-        scoring=tuning_cfg.get("scoring", "f1"),
-        n_jobs=tuning_cfg.get("n_jobs", -1),
-        verbose=1,
-        error_score="raise",
-    )
-    grid_search.fit(X_train, y_train)
-    return grid_search
+    pipeline.fit(X_train, y_train)
+    return pipeline
 
 
 def save_model(model, filepath):

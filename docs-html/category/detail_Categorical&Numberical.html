@@ -194,24 +194,21 @@
 <ul>
 <li><strong>Vấn đề:</strong> Một tế bào <code>Neutrophil</code> (Bạch cầu trung tính) vốn dĩ to hơn <code>Normal RBC</code> (Hồng cầu). Nếu bạn dùng <code>StandardScaler</code> cho toàn bộ cột <code>cell_diameter_um</code>, mô hình sẽ bị "ám ảnh" bởi kích thước tuyệt đối.</li>
 <li><strong>Giải pháp:</strong> Tính toán <strong>Z-score theo từng loại tế bào</strong>.</li>
-<li>Công thức: $$Z_{grouped} = \frac{x - \mu_{cell_type}}{\sigma_{cell_type}}$$</li>
+<li>Công thức: $$Z_{grouped} = \frac{x - \mu_{group}}{\sigma_{group}}$$</li>
 <li><strong>Ý nghĩa:</strong> Đặc trưng này cho mô hình biết: "Tế bào này to bất thường <strong>so với các tế bào cùng loại với nó</strong>", thay vì to so với trung bình chung của mẫu máu.</li>
 </ul>
-<h2 id="2-target-encoding-voi-smoothing-cho-cell_type">2. Target Encoding với Smoothing cho <code>cell_type</code></h2>
-<blockquote>
-<p><strong>Cập nhật:</strong> Mặc dù <code>cell_type</code> có mối quan hệ mạnh với <code>anomaly_label</code> (p<em>value = 0.0), nhưng với </em><em>Target Encoding kèm Smoothing</em><em category="category"> (alpha=10), chúng ta có thể giảm thiểu overfitting bằng cách làm mịn giá trị mã hóa về phía mean toàn cục. Công thức: $$smoothed = \frac{count \times mean</em>$$} + \alpha \times mean_{global}}{count + \alpha</p>
-</blockquote>
+<h2 id="2-removed-cell_type">2. Removed <code>cell_type</code> from the feature set</h2>
+<p>Biến <code>cell_type</code> đã bị loại bỏ khỏi pipeline để tránh mô hình học các mối quan hệ giả do dữ liệu lịch sử. Do đó, các kỹ thuật target encoding hoặc grouped scaling trên biến này không còn áp dụng.</p>
 <ul>
-<li><strong>Lý do thay đổi:</strong> Target Encoding cho phép mô hình học trực tiếp mối quan hệ cell_type → anomaly, trong khi smoothing ngăn chặn việc ghi nhớ quá mức.</li>
-<li><strong>Xử lý nhóm hiếm:</strong> Gom nhóm &lt; 2% vào <code>Other_Rare_Types</code> trước khi encoding.</li>
-<li><strong>Lưu ý:</strong> Theo dõi performance trên validation set để đảm bảo không overfitting.</li>
+<li><strong>Lý do:</strong> Dữ liệu chứa các nhóm hiếm và thông tin liên quan trực tiếp đến nhãn, gây rủi ro data leakage hoặc overfitting khi giữ lại.</li>
+<li><strong>Hướng xử lý:</strong> Loại bỏ <code>cell_type</code> tại bước lọc và chỉ dùng các biến phân loại còn lại như <code>staining_protocol</code>, <code>patient_sex</code>, và <code>patient_age_group</code>.</li>
 </ul>
 <hr />
 <h2 id="3-tao-ac-trung-tuong-tac-cross-feature-interactions">3. Tạo đặc trưng Tương tác (Cross-Feature Interactions)</h2>
 <p>Sự kết hợp giữa một đặc trưng phân loại và một ngưỡng định lượng thường là chìa khóa để phát hiện bệnh lý.</p>
 <ul>
 <li><strong>Flag Features (Biến cờ hiệu):</strong> Tạo các biến Boolean dựa trên kiến thức chuyên môn.</li>
-<li><em>Ví dụ:</em> <code>Is_Large_Nucleus_in_Small_Cell</code> = (Nếu <code>cell_type</code> là 'Lymphocyte' VÀ <code>nucleus_area_pct</code> &gt; 80%).</li>
+<li><em>Ví dụ:</em> <code>Is_High_Intensity_Protocol</code> = (Nếu <code>staining_protocol</code> là 'Giemsa' VÀ <code>stain_intensity</code> &gt; 0.8).</li>
 <li><strong>Categorical-Driven Scaling:</strong> Nhân các đặc trưng hình thái với trọng số của <code>staining_protocol</code>.</li>
 <li><em>Lý do:</em> Nếu nhuộm Wright làm nhân tế bào trông to hơn 5% so với Giemsa, bạn có thể tạo biến điều chỉnh: <code>adj_nucleus_area = nucleus_area_pct * staining_adjustment_factor</code>.</li>
 </ul>
@@ -223,7 +220,7 @@
 <li><strong>Tính ổn định (Robustness):</strong> Không bị đánh lừa bởi các yếu tố gây nhiễu như kính hiển vi hay quy trình nhuộm.</li>
 <li><strong>Độ nhạy (Sensitivity):</strong> Phát hiện được các tế bào bất thường "ẩn mình" vốn có kích thước trông giống tế bào bình thường nhưng lại có cấu trúc nhân sai lệch so với quần thể cùng loại.</li>
 </ol>
-<p><strong>Lời khuyên:</strong> Sau khi tạo các đặc trưng kết hợp này, hãy sử dụng biểu đồ <strong>SHAP Summary Plot</strong>. Nó sẽ cho team bạn thấy rõ: "Liệu sự kết hợp giữa <code>cell_type</code> và <code>nc_ratio</code> có thực sự là yếu tố quyết định nhãn 1 hay không?".</p>
+<p><strong>Lời khuyên:</strong> Sau khi tạo các đặc trưng kết hợp này, hãy sử dụng biểu đồ <strong>SHAP Summary Plot</strong>. Nó sẽ cho team bạn thấy rõ: "Liệu sự kết hợp giữa <code>staining_protocol</code> và <code>nc_ratio</code> có thực sự là yếu tố quyết định nhãn 1 hay không?".</p>
             </div>
         </div>
     </main>

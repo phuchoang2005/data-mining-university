@@ -121,6 +121,7 @@ def build_preprocessing_pipeline(config=None):
         # Config: group_d (cytodiffusion_anomaly_score, cytodiffusion_classification_confidence)
         ('drop_leakage', ColumnDropper(columns=[
             "cell_id",                           # ID column
+            "cell_type",                         # dropped feature
             "disease_category",                  # data leakage
             "dataset_source",                    # no significance (p=0.520)
             "microscope_model",                  # no significance (p=0.408)
@@ -145,7 +146,7 @@ def build_preprocessing_pipeline(config=None):
         )),
 
         # Step 7: Categorical encoding
-        # Config: categorical_features (Target: cell_type; OHE: staining_protocol, patient_sex;
+        # Config: categorical_features (OHE: staining_protocol, patient_sex;
         #         Ordinal: patient_age_group; Drop handled in step 3)
         ('categorical_proc', CategoricalProcessor(config=config)),
 
@@ -171,7 +172,7 @@ def build_preprocessing_pipeline(config=None):
                 "target_features": [
                     "cell_diameter_um", "cell_area_px", "perimeter_px",
                     "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
-                    "mean_r", "mean_g", "mean_b", "cell_type"
+                    "mean_r", "mean_g", "mean_b"
                 ],
                 "sigma_percentage": 0.01
             },

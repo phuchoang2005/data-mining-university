@@ -191,26 +191,25 @@
                 <h2 id="1-tuong-tac-categorical-x-numerical-contextual-features">1. Tương tác Categorical x Numerical (Contextual Features)</h2>
 <p>Đây là hướng bạn đã quan tâm. Mục tiêu là tạo ra sự "nhạy cảm theo ngữ cảnh" cho mô hình.</p>
 <ul>
-<li><strong>Z-score theo Loại tế bào (Grouped Z-score):</strong> Đã đề cập ở phần trước, đây là "vũ khí" mạnh nhất.</li>
-<li><strong>Thực hiện:</strong> Với mỗi mẫu, tính: $$ \frac{Value - Mean_{CellType}}{Std_{CellType}} $$. Áp dụng cho <code>cell_diameter_um</code> và <code>nucleus_area_pct</code>.</li>
-<li><strong>Mã hóa Tương tác (Interaction Encoding):</strong> Kết hợp một biến phân loại quan trọng với một ngưỡng định lượng.</li>
-<li><strong>Ví dụ:</strong> Tạo biến <code>Is_Large_Lymphocyte</code> = 1 nếu (<code>cell_type</code> == 'Lymphocyte' AND <code>cell_area_px</code> &gt; 500), ngược lại = 0.</li>
+<li><strong>Z-score theo nhóm phù hợp:</strong> Sử dụng các nhóm còn lại như <code>staining_protocol</code> hoặc <code>patient_age_group</code> để chuẩn hóa các đặc trưng hình thái.</li>
+<li><strong>Thực hiện:</strong> Với mỗi mẫu, tính: $$ \frac{Value - Mean_{Group}}{Std_{Group}} $$. Áp dụng cho <code>cell_diameter_um</code> và <code>nucleus_area_pct</code>.</li>
+<li><strong>Mã hóa Tương tác (Interaction Encoding):</strong> Kết hợp một biến phân loại khả dụng với một ngưỡng định lượng.</li>
+<li><strong>Ví dụ:</strong> Tạo biến <code>Is_High_Intensity_Protocol</code> = 1 nếu (<code>staining_protocol</code> == 'Giemsa' AND <code>stain_intensity</code> &gt; 0.8), ngược lại = 0.</li>
 <li><strong>Protocol-Adjusted Intensity:</strong> Điều chỉnh cường độ màu sắc dựa trên quy trình nhuộm.</li>
 <li><strong>Công thức:</strong> $$ Adjusted\_Intensity = stain\_intensity \times TargetMean\_StainingProtocol $$</li>
 </ul>
 <h2 id="2-tuong-tac-categorical-x-categorical-feature-crossing">2. Tương tác Categorical x Categorical (Feature Crossing)</h2>
 <p>Khi hai biến phân loại kết hợp với nhau, chúng có thể tạo ra một "ngữ cảnh" hoàn toàn mới.</p>
 <ul>
-<li><strong>Cell-Protocol Cross:</strong> Kết hợp <code>cell_type</code> và <code>staining_protocol</code>.</li>
-<li><strong>Tại sao?</strong> Một loại tế bào <code>Blast_Cell</code> có thể trông rất khác nhau dưới nhuộm <code>Giemsa</code> so với <code>Wright</code>.</li>
-<li><strong>Thực hiện:</strong> Tạo biến mới <code>Cell_Stain = cell_type + "_" + staining_protocol</code>. Sau đó dùng <strong>One-Hot Encoding</strong> cho biến mới này.</li>
+<li><strong>Cell-Protocol Cross:</strong> Không sử dụng biến <code>cell_type</code> trong các tương tác vì feature này đã bị loại bỏ.</li>
+<li><strong>Thay thế:</strong> Kết hợp <code>staining_protocol</code> với các đặc trưng hình thái như <code>cell_area_px</code> và <code>membrane_smoothness</code> để tạo các biến ngữ cảnh.</li>
+<li><strong>Thực hiện:</strong> Tạo biến mới như <code>Protocol_Adjusted_Intensity = stain_intensity * protocol_factor</code> rồi One-Hot encode <code>staining_protocol</code>.</li>
 <li>
 <blockquote>
-<p>⚠️ <strong>Lưu ý:</strong> Không dùng Target Encoding cho biến chứa <code>cell_type</code> vì <code>cell_type</code> có mối quan hệ xác định (p=0.0) với <code>anomaly_label</code> — Target Encoding sẽ gây Overfitting.</p>
+<p>⚠️ <strong>Lưu ý:</strong> Biến <code>cell_type</code> đã được loại bỏ để tránh overfitting và leakage. Không tạo feature crossing dựa trên biến này.</p>
 </blockquote>
 </li>
-<li><strong>Age-Type Interaction:</strong> Kết hợp <code>patient_age_group</code> và <code>cell_type</code>.</li>
-<li><strong>Tại sao?</strong> Tỷ lệ xuất hiện của các tế bào non (Blast) ở nhóm <code>Pediatric</code> (trẻ em) mang ý nghĩa bệnh lý khác so với nhóm <code>Elderly</code> (người già).</li>
+<li><strong>Age-Protocol Interaction:</strong> Kết hợp <code>patient_age_group</code> với <code>staining_protocol</code> để nắm bắt hiện tượng khác biệt theo nhóm tuổi và loại nhuộm.</li>
 </ul>
 <h2 id="3-quy-trinh-kiem-chung-validation-workflow-cho-team">3 Quy trình Kiểm chứng (Validation Workflow) cho Team</h2>
 <p>Sau khi Người 2 tạo ra các biến tương tác này, Người 3 và Người 4 cần làm:</p>

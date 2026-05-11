@@ -18,8 +18,7 @@ def gaussian_noise_sampler(X, y, target_features=None, sigma_percentage=0.01):
     if target_features is None:
         target_features = [
             "cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio",
-            "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b",
-            "cell_type"
+            "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b"
         ]
 
     cols_to_noise = [c for c in target_features if c in X_df.columns]

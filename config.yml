@@ -73,9 +73,10 @@ data:
   output:
     path: "data/processed/"
     train_test_split:
-      method: "stratified_shuffle_split"
+      method: "stratified_train_test_split"
       test_size: 0.2
       random_state: 42
+      stratify: true
 
 # =============================================================================
 # NUMERIC FEATURE GROUPS (Member 1)
@@ -186,16 +187,6 @@ categorical_features:
     reason: "Identifier column - no predictive value"
     action: "drop"
 
-  cell_type:
-    processing: "target_encoding"
-    # Target Encoding with smoothing to avoid overfitting despite p_value=0.0
-    # Smoothing regularizes the encoding by blending category mean with global mean
-    smoothing_alpha: 10  # Smoothing parameter: higher = more regularization
-    special_handling:
-      - "Group rare types (< 2%) into 'Other_Rare_Types'"
-    p_value: 0.0
-    action: "keep"
-    
   disease_category:
     processing: "drop"
     reason: "Data leakage - contains target information"
@@ -312,7 +303,7 @@ data_augmentation:
   # 1. Gaussian Noise Injection
   gaussian_noise:
     target_groups: ["group_b", "group_c"]
-    target_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b", "cell_type"]
+    target_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b"]
     sigma_percentage: 0.01  # 1-2% of standard deviation
     description: "Simulate measurement errors"
     
@@ -391,9 +382,9 @@ imbalance_handling:
 # =============================================================================
 validation:
   cross_validation:
-    method: "StratifiedKFold"
-    n_splits: 5
-    shuffle: true
+    method: "train_test_split"
+    stratified: true
+    test_size: 0.2
     random_state: 42
     
   metrics:
@@ -463,7 +454,7 @@ pipeline_order:
   step_7:
     member: 2
     task: "Encode categorical variables"
-    description: "Target Encoding with smoothing (cell_type), One-Hot encoding (staining_protocol, patient_sex), Ordinal encoding (patient_age_group), drop leakage/ID columns (cell_id, disease_category, dataset_source, microscope_model)"
+    description: "One-Hot encoding (staining_protocol, patient_sex), Ordinal encoding (patient_age_group), drop leakage/ID columns (cell_id, disease_category, dataset_source, microscope_model)"
     input: "data/intermediate/numeric_processed.csv"
     output: "data/intermediate/categorical_encoded.csv"
     
@@ -518,7 +509,7 @@ pipeline_order:
   # -------------------------------------------------------------------------
   step_15:
     member: "leader"
-    task: "Train 6 classification models with hyperparameter tuning"
+    task: "Train 6 classification models with fixed hyperparameters"
     description: "Decision Tree, Naive Bayes, KNN, Logistic Regression, Random Forest, XGBoost"
     input: "data/processed/model_input.csv"
     output: "models/saved/"
@@ -551,18 +542,19 @@ model_training:
         min_samples_split: 5
         min_samples_leaf: 2
         class_weight: "balanced"
-      hyperparams:
-        max_depth: [5, 10, 15, null]
-        min_samples_split: [2, 5, 10]
-        
+        random_state: 42
+        ccp_alpha: 0.0
+        splitter: "best"
+        min_weight_fraction_leaf: 0.0
+        max_features: "auto"
+
     # 2. Naive Bayes
     - name: "Naive Bayes"
       type: "probabilistic"
       params:
         variant: "GaussianNB"
+        var_smoothing: 1e-09
       # Note: Requires normal distribution - ensure Yeo-Johnson transform applied
-      hyperparams:
-        var_smoothing: [0.000000001, 0.00000001, 0.0000001, 0.000001]
         
     # 3. K-Nearest Neighbors (KNN)
     - name: "K-Nearest Neighbors"
@@ -572,11 +564,10 @@ model_training:
         weights: "distance"
         metric: "minkowski"
         p: 2
-      hyperparams:
-        n_neighbors: [3, 5, 7, 9, 11]
-        weights: ["uniform", "distance"]
-        metric: ["euclidean", "manhattan", "minkowski"]
-        
+        leaf_size: 30
+        algorithm: "auto"
+        n_jobs: -1
+
     # 4. Logistic Regression
     - name: "Logistic Regression"
       type: "linear"
@@ -586,10 +577,10 @@ model_training:
         solver: "lbfgs"
         max_iter: 5000
         class_weight: "balanced"
-      hyperparams:
-        C: [0.01, 0.1, 1, 10, 100]
-        penalty: ["l1", "l2"]
-        
+        random_state: 42
+        tol: 1e-4
+        dual: false
+
     # 5. Random Forest
     - name: "Random Forest"
       type: "ensemble"
@@ -600,11 +591,9 @@ model_training:
         min_samples_leaf: 2
         class_weight: "balanced"
         random_state: 42
-      hyperparams:
-        n_estimators: [50, 100, 200]
-        max_depth: [5, 10, 15, null]
-        min_samples_split: [2, 5, 10]
-        
+        bootstrap: true
+        max_features: "sqrt"
+
     # 6. XGBoost
     - name: "XGBoost"
       type: "gradient_boosting"
@@ -617,16 +606,11 @@ model_training:
         scale_pos_weight: 3  # Adjust for imbalance
         random_state: 42
         eval_metric: "logloss"
-      hyperparams:
-        n_estimators: [50, 100, 200]
-        max_depth: [3, 6, 9]
-        learning_rate: [0.01, 0.1, 0.2]
-        subsample: [0.7, 0.8, 0.9]
-        
+
   # Training configuration
   training:
-    validation_strategy: "stratified_kfold"
-    cv_folds: 5
+    method: "train_test_split"
+    stratified: true
     test_size: 0.2
     random_state: 42
     
@@ -638,13 +622,6 @@ model_training:
     - "f1_score"
     - "roc_auc"
     - "confusion_matrix"
-    
-  # Hyperparameter tuning
-  hyperparameter_tuning:
-    method: "grid_search"
-    cv_folds: 5
-    scoring: "f1"  # Optimize for F1 due to class imbalance
-    n_jobs: -1  # Use all CPU cores
     
   # Model selection criteria
   selection_criteria:
@@ -661,7 +638,7 @@ model_training:
     - "f1_score"
     - "roc_auc"
     - "training_time_seconds"
-    - "hyperparams"
+    - "params"
 
 # =============================================================================
 # OUTPUT FILES

@@ -188,13 +188,10 @@
             <div class="content">
                 <h2 id="1-nhom-bien-co-y-nghia-thong-ke-cao-p-005">1. Nhóm Biến Có Ý Nghĩa Thống Kê Cao ($p &lt; 0.05$)</h2>
 <p>Đây là những biến có mối liên hệ mật thiết với việc tế bào đó là Bình thường hay Bất thường.</p>
-<h3 id="a-cell_type-va-disease_category-p-00">a. <code>cell_type</code> và <code>disease_category</code> ($p = 0.0$)</h3>
+<h3 id="a-disease_category-p-00">a. <code>disease_category</code> ($p = 0.0$)</h3>
 <ul>
-<li><strong>Phân tích:</strong> Đây là những biến mang thông tin sinh học cốt lõi. Tuy nhiên, nhìn vào biểu đồ, <code>cell_type</code> có rất nhiều nhóm nhỏ (cardinality cao) và một số nhóm có tỷ lệ cực thấp (như <code>Artefact</code>, <code>Smudge Cell</code>).</li>
-<li><strong>Cảnh báo Data Leakage:</strong> Biến <code>disease_category</code> chứa các giá trị như "Normal_WBC", "Leukemia", "Anemia". Nếu bạn dùng biến này để dự đoán <code>anomaly_label</code>, mô hình sẽ đạt độ chính xác 100% một cách vô nghĩa (vì "Normal" chắc chắn là nhãn 0, "Leukemia" chắc chắn là nhãn 1).</li>
-<li><strong>Hướng xử lý:</strong></li>
-<li><strong><code>disease_category</code>:</strong> <strong>Loại bỏ (Drop)</strong> khỏi tập huấn luyện để tránh rò rỉ dữ liệu, hoặc chỉ dùng để phân tích hậu kiểm.</li>
-<li><strong><code>cell_type</code>:</strong> Sử dụng <strong>Target Encoding với Smoothing</strong> (thay vì One-Hot Encoding). Mặc dù p_value=0.0 cho thấy mối quan hệ mạnh, nhưng với smoothing (alpha=10), chúng ta có thể tránh overfitting bằng cách làm mịn giá trị mã hóa về phía mean toàn cục. Với các nhóm có tỷ lệ &lt; 2% (như <code>Sickle_Cell</code>, <code>Spherocyte</code>), hãy gom chúng vào một nhóm chung gọi là <strong>"Other_Rare_Types"</strong>.</li>
+<li><strong>Phân tích:</strong> Biến <code>disease_category</code> chứa thông tin liên quan trực tiếp đến nhãn và có nguy cơ data leakage nếu đưa vào mô hình.</li>
+<li><strong>Hướng xử lý:</strong> <strong>Loại bỏ (Drop)</strong> khỏi tập huấn luyện để tránh mô hình học các mối quan hệ vô nghĩa.</li>
 </ul>
 <h3 id="b-staining_protocol-p-0026">b. <code>staining_protocol</code> ($p = 0.026$)</h3>
 <ul>
@@ -235,13 +232,13 @@
 <td style="text-align: left;">Cột định danh, không có giá trị dự đoán</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong><code>cell_type</code></strong></td>
+<td style="text-align: left;"><strong><code>disease_category</code></strong></td>
 <td style="text-align: left;">0.0 (Rất mạnh)</td>
-<td style="text-align: left;"><strong>Target Encoding với Smoothing</strong></td>
-<td style="text-align: left;">Gom nhóm các loại hiếm (&lt; 2%). Smoothing để tránh Overfitting</td>
+<td style="text-align: left;"><strong>Drop</strong></td>
+<td style="text-align: left;">Tránh Data Leakage</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong><code>disease_category</code></strong></td>
+<td style="text-align: left;"><strong><code>staining_protocol</code></strong></td>
 <td style="text-align: left;">0.0 (Rất mạnh)</td>
 <td style="text-align: left;"><strong>Drop</strong></td>
 <td style="text-align: left;">Tránh Data Leakage</td>
@@ -282,8 +279,8 @@
 <h2 id="4-toi-uu-hoa-chuyen-sau-su-ket-hop-categorical-numerical">4. Tối ưu hóa chuyên sâu: Sự kết hợp Categorical &amp; Numerical</h2>
 <p>Để nâng cao hiệu quả, team bạn có thể thực hiện thêm:</p>
 <ol>
-<li><strong>Group-wise Scaling:</strong> Thay vì chuẩn hóa <code>cell_area_px</code> cho toàn bộ dữ liệu, hãy chuẩn hóa theo từng <code>cell_type</code>. (Ví dụ: Một con Bạch cầu trung tính to là bình thường, nhưng một con Hồng cầu to lại là bất thường).</li>
-<li><strong>Interaction Features:</strong> Tạo biến kết hợp như <code>cell_type</code> + <code>staining_protocol</code> để xem một loại tế bào dưới một loại nhuộm nhất định có bộc lộ đặc trưng tốt hơn không.</li>
+<li><strong>Group-wise Scaling:</strong> Thay vì chuẩn hóa <code>cell_area_px</code> cho toàn bộ dữ liệu, hãy cân nhắc chuẩn hóa theo nhóm <code>staining_protocol</code> hoặc <code>patient_age_group</code> để tránh phụ thuộc vào biến đã bị loại bỏ.</li>
+<li><strong>Interaction Features:</strong> Tạo biến kết hợp như <code>staining_protocol</code> + <code>membrane_smoothness</code> thay vì sử dụng <code>cell_type</code>.</li>
 </ol>
 <p><a href="./category/detail_Categorical&amp;Numberical.md">Chi tiết</a></p>
             </div>

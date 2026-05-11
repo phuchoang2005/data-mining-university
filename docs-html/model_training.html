@@ -209,10 +209,10 @@
 <hr />
 <h2 id="3-training-validation">3. Training &amp; Validation</h2>
 <ul>
-<li>Use <strong>Stratified K-Fold Cross-Validation</strong> (n_splits=5, shuffle=True, random_state=42)</li>
-<li>Use <strong>Grid Search</strong> for hyperparameter tuning (see config.yml for parameter grids)</li>
+<li>Use a standard <strong>stratified train/test split</strong> with <code>train_test_split</code> (test_size=0.2, random_state=42)</li>
+<li>Train models with fixed hyperparameters defined in <code>config.yml</code></li>
 <li>Optimize for <strong>F1-score</strong> (primary) and <strong>ROC-AUC</strong> (secondary)</li>
-<li>Use all CPU cores for parallel search (<code>n_jobs=-1</code>)</li>
+<li>Avoid cross-validation search and GridSearchCV in the training pipeline</li>
 </ul>
 <hr />
 <h2 id="4-evaluation-metrics">4. Evaluation Metrics</h2>
@@ -261,7 +261,7 @@
 <hr />
 <h2 id="9-example-workflow-pythonpseudocode">9. Example Workflow (Python/pseudocode)</h2>
 <pre class="codehilite"><code class="language-python">import pandas as pd
-from sklearn.model_selection import StratifiedKFold, GridSearchCV
+from sklearn.model_selection import train_test_split
 # ... import all model classes ...
 
 # 1. Load data
@@ -269,16 +269,15 @@ df = pd.read_csv('data/processed/model_input.csv')
 X = df.drop('anomaly_label', axis=1)
 y = df['anomaly_label']
 
-# 2. Define models and parameter grids (see config.yml)
-models = {...}
-param_grids = {...}
+# 2. Split train/test data
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
 
-# 3. Cross-validation and grid search
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+# 3. Train models with fixed parameters from config
 for name, model in models.items():
-    grid = GridSearchCV(model, param_grids[name], scoring='f1', cv=cv, n_jobs=-1)
-    grid.fit(X, y)
-    # Save best estimator, metrics, etc.
+    model.fit(X_train, y_train)
+    # Evaluate on X_test, save metrics, etc.
 </code></pre>
 
 <hr />
