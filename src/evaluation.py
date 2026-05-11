@@ -102,7 +102,9 @@ def plot_shap_summary(model, X_test, filepath):
         if hasattr(classifier, 'feature_importances_'):  # Tree-based
             explainer = shap.TreeExplainer(classifier)
         else:
-            explainer = shap.Explainer(classifier, X_transformed)
+            # Use a callable prediction function for models like GaussianNB and KNN
+            predict_fn = getattr(classifier, 'predict_proba', None) or classifier.predict
+            explainer = shap.Explainer(predict_fn, X_transformed)
             
         shap_values = explainer(X_transformed)
         

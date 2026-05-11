@@ -546,7 +546,7 @@ model_training:
         ccp_alpha: 0.0
         splitter: "best"
         min_weight_fraction_leaf: 0.0
-        max_features: "auto"
+        max_features: "sqrt"
 
     # 2. Naive Bayes
     - name: "Naive Bayes"
@@ -572,7 +572,6 @@ model_training:
     - name: "Logistic Regression"
       type: "linear"
       params:
-        penalty: "l2"
         C: 1.0
         solver: "lbfgs"
         max_iter: 5000
