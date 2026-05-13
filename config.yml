@@ -73,9 +73,10 @@ data:
   output:
     path: "data/processed/"
     train_test_split:
-      method: "stratified_shuffle_split"
+      method: "stratified_train_test_split"
       test_size: 0.2
       random_state: 42
+      stratify: true
 
 # =============================================================================
 # NUMERIC FEATURE GROUPS (Member 1)
@@ -88,7 +89,9 @@ numeric_groups:
       - "eccentricity"
       - "lobularity_score"
       - "chromatin_density"
-      - "nucleus_area_pct"
+      # nucleus_area_pct REMOVED after feature engineering: replaced by nc_ratio
+      # (nc_ratio = nucleus_area_pct / (100 - nucleus_area_pct) is a monotonic bijection
+      #  → perfect multicollinearity VIF=∞ if both are kept)
       - "circularity"
     
     processing:
@@ -108,9 +111,10 @@ numeric_groups:
     name: "Nhóm B: Hình thái học (Cần xử lý Skewness)"
     description: "Average separability, multi-modal distribution"
     features:
-      - "cell_diameter_um"
-      - "cell_area_px"
-      - "perimeter_px"
+      # cell_diameter_um REMOVED after feature engineering: direct divisor of size_anomaly
+      #   (size_anomaly = cell_diameter_um / mcv_fl) → keeping both gives VIF = ∞
+      # cell_area_px     REMOVED after feature engineering: replaced by true_cell_area
+      # perimeter_px     REMOVED after feature engineering: used by form_factor then dropped
       - "cytoplasm_ratio"
       - "membrane_smoothness"
       - "granularity_score"
@@ -135,11 +139,12 @@ numeric_groups:
       - "hemoglobin_g_dl"
       - "hematocrit_pct"
       - "platelet_count_per_ul"
-      - "mcv_fl"
+      # mcv_fl REMOVED after feature engineering: direct divisor of size_anomaly
+      #   (size_anomaly = cell_diameter_um / mcv_fl) → keeping both gives VIF = ∞
       - "mchc_g_dl"
-      - "mean_r"
-      - "mean_g"
-      - "mean_b"
+      # mean_r / mean_g / mean_b REMOVED after feature engineering:
+      # replaced by r_ratio, g_ratio (chromaticity ratios computed from
+      # protocol-shifted values). stain_intensity retained for absolute brightness.
       - "stain_intensity"
     
     processing:
@@ -169,27 +174,23 @@ numeric_groups:
         reason: "Data leakage - prevents model from 'memorizing' results"
         
       labeller_confidence_score:
-        action: "filter_rows"
+        action: "filter_rows_then_drop"
         threshold: 0.5
-        reason: "Remove low-confidence labeled samples from training"
+        reason: "Remove low-confidence labeled samples, then drop column (meta-feature, not cell property)"
         
       cytodiffusion_classification_confidence:
-        action: "keep"
-        reason: "May provide useful context"
+        action: "drop"
+        reason: "Data leakage - confidence from the same cytodiffusion system that produced anomaly_score"
 
 # =============================================================================
 # CATEGORICAL FEATURE PROCESSING (Member 2)
 # =============================================================================
 categorical_features:
-  cell_type:
-    processing: "target_encoding"
-    # Alternative: one_hot_encoding
-    special_handling:
-      - "Group rare types (< 2%) into 'Other_Rare_Types'"
-      - "Use smoothing for high cardinality"
-    p_value: 0.0
-    action: "keep"
-    
+  cell_id:
+    processing: "drop"
+    reason: "Identifier column - no predictive value"
+    action: "drop"
+
   disease_category:
     processing: "drop"
     reason: "Data leakage - contains target information"
@@ -250,21 +251,27 @@ feature_engineering:
     
   # 3. Shape Complexity (Form Factor)
   form_factor:
-    formula: "(4 * pi * cell_area_px) / (perimeter_px ^ 2)"
+    formula: "(4 * pi * true_cell_area) / (true_perimeter ^ 2)"
+    source_features: ["true_cell_area", "true_perimeter"]
+    note: "Computed from physical-unit columns (Step 4 output), not raw pixels — magnification-invariant"
     interpretation: "1.0 = perfect circle, lower = more complex shape"
-    target_group: "group_a + group_b"
+    multicollinearity: "true_perimeter dropped in Step 7 — keeping true_cell_area + true_perimeter + form_factor gives VIF = ∞"
+    target_group: "engineered"
     
-  # 4. Chromaticity Features (using Group C color features)
+  # 4. Chromaticity Features
+  # NOTE: computed AFTER protocol shifting (Step 5) so that ratios reflect
+  # bias-free hue rather than staining-protocol artifacts.
   chromaticity:
-    - feature: "r_ratio"
-      formula: "mean_r / (mean_r + mean_g + mean_b)"
-    - feature: "g_ratio"
-      formula: "mean_g / (mean_r + mean_g + mean_b)"
-    - feature: "b_ratio"
-      formula: "mean_b / (mean_r + mean_g + mean_b)"
-    - description: "Color ratios independent of lighting conditions"
-    - source_features: ["mean_r", "mean_g", "mean_b"]
-    - target_group: "group_c"
+    prerequisite: "protocol_shifting must run first (Step 5 before Step 6)"
+    description: "Protocol-normalised color ratios, lighting-invariant"
+    source_features: ["mean_r", "mean_g", "mean_b"]
+    target_group: "engineered"
+    features:
+      - feature: "r_ratio"
+        formula: "mean_r_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
+      - feature: "g_ratio"
+        formula: "mean_g_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
+      # b_ratio NOT kept: r_ratio + g_ratio + b_ratio ≡ 1 → perfect linear dependency → VIF=∞
     
   # 5. Global-Local Interaction
   size_anomaly:
@@ -289,7 +296,7 @@ clustering:
     - "granularity_score"
   
   optimal_clusters:
-    method: "elbow_method"  # Or silhouette_score
+    method: "BIC"  # Bayesian Information Criterion — minimise BIC over n_components in range
     expected_range: [3, 5]  # Typical for blood cell types
   
   output:
@@ -304,17 +311,30 @@ clustering:
 # =============================================================================
 data_augmentation:
   # 1. Gaussian Noise Injection
+  # NOTE: target_features updated — cell_area_px / perimeter_px / mean_r/g/b are
+  # dropped after feature engineering and no longer exist at this pipeline stage.
   gaussian_noise:
-    target_groups: ["group_b", "group_c"]
-    target_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b"]
-    sigma_percentage: 0.01  # 1-2% of standard deviation
-    description: "Simulate measurement errors"
-    
+    target_groups: ["group_b", "engineered_physical"]
+    target_features:
+      # cell_diameter_um REMOVED — dropped in Step 7 (encoded by size_anomaly)
+      - "cytoplasm_ratio"
+      - "membrane_smoothness"
+      - "granularity_score"
+      - "true_cell_area"      # physical unit version of cell_area_px
+      # true_perimeter   REMOVED — dropped in Step 7 (VIF = ∞ with form_factor + true_cell_area)
+      - "stain_intensity"     # remaining Group C color feature
+    sigma_percentage: 0.01
+    description: "Simulate measurement errors (targets updated after source-feature drops in Step 7)"
+
   # 2. Staining Protocol Shifting
+  # IMPORTANT: runs as Step 5, BEFORE Feature Engineering (Step 6).
+  # Reason: chromaticity ratios must be computed from bias-free colors.
   protocol_shifting:
+    pipeline_step: 5
+    runs_before: "feature_engineering (Step 6)"
     target_features: ["mean_r", "mean_g", "mean_b", "stain_intensity"]
     method: "group_wise_normalization"
-    description: "Normalize color across different staining protocols"
+    description: "Normalize color across different staining protocols before chromaticity ratios are computed"
     
   # 3. SMOTE for Imbalance
   smote:
@@ -324,9 +344,16 @@ data_augmentation:
   # 4. Covariate Shift Simulation
   covariate_shift:
     target_groups: ["group_c"]
-    target_features: ["wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl", "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl"]
+    target_features:
+      - "wbc_count_per_ul"
+      - "rbc_count_millions_per_ul"
+      - "hemoglobin_g_dl"
+      - "hematocrit_pct"
+      - "platelet_count_per_ul"
+      # mcv_fl REMOVED — dropped in Step 7 (encoded by size_anomaly)
+      - "mchc_g_dl"
     factor_range: [0.98, 1.02]
-    description: "Simulate variation between different hospitals"
+    description: "Simulate variation between different hospitals (targets updated after Step 7 drops)"
 
 # =============================================================================
 # FEATURE SELECTION (Member 3)
@@ -338,19 +365,20 @@ feature_selection:
     threshold: 10
     action: "remove_high_vif"
     
+  # 2. Correlation Matrix
   correlation_filter:
     method: "correlation_matrix"
     threshold: 0.9
     action: "remove_one_of_pair"
     
-  # 2. Mutual Information
+  # 3. Mutual Information
   mutual_info:
     method: "mutual_info_classif"
     target: "anomaly_label"
     action: "select_k_best"
     k_range: [15, 20]
     
-  # 3. Recursive Feature Elimination
+  # 4. Recursive Feature Elimination
   rfe:
     estimator: "RandomForest"  # Or XGBoost
     step: 1
@@ -358,10 +386,13 @@ feature_selection:
     action: "find_optimal_features"
     expected_optimal: [10, 12]
     
-  # 4. Permutation Importance
+  # 5. Permutation Importance
   permutation_importance:
-    method: "shap"
-    description: "Explain model decisions post-training"
+    method: "sklearn.inspection.permutation_importance"
+    input: "transformed features (post-pipeline classifier input, not raw columns)"
+    scoring: "f1"
+    n_repeats: 10
+    description: "Rank features by drop in F1 when each transformed feature is randomly shuffled — operates after pipeline transforms, not on raw input"
 
 # =============================================================================
 # CLASS IMBALANCE HANDLING (Member 3)
@@ -384,9 +415,9 @@ imbalance_handling:
 # =============================================================================
 validation:
   cross_validation:
-    method: "StratifiedKFold"
-    n_splits: 5
-    shuffle: true
+    method: "train_test_split"
+    stratified: true
+    test_size: 0.2
     random_state: 42
     
   metrics:
@@ -439,8 +470,8 @@ pipeline_order:
     
   step_5:
     member: 1
-    task: "Process Group D (Confidence scores) - drop anomaly_score, filter by confidence"
-    description: "Remove data leakage, filter low-confidence samples"
+    task: "Process Group D (Confidence scores) - drop leakage columns, filter by confidence"
+    description: "Drop cytodiffusion_anomaly_score and cytodiffusion_classification_confidence (data leakage). Filter rows where labeller_confidence_score < 0.5, then drop the column."
     input_features: ["labeller_confidence_score", "cytodiffusion_classification_confidence", "cytodiffusion_anomaly_score"]
     output: "data/intermediate/group_d_processed.csv"
     
@@ -453,18 +484,49 @@ pipeline_order:
   # -------------------------------------------------------------------------
   # MEMBER 2: Categorical & Feature Engineering
   # -------------------------------------------------------------------------
-  step_7:
+  step_5_protocol_shift:
+    member: 2
+    task: "Staining Protocol Shifting (BEFORE Feature Engineering)"
+    description: |
+      Normalize mean_r, mean_g, mean_b, stain_intensity across staining protocols via
+      group-wise mean shift. Must run before Step 6 so that chromaticity ratios are
+      computed from bias-free (protocol-normalised) color values.
+    input: "data/intermediate/numeric_processed.csv"
+    output: "data/intermediate/protocol_shifted.csv"
+
+  step_6_feature_eng:
+    member: 2
+    task: "Create domain-based features (from shifted colors and physical units)"
+    description: |
+      N/C Ratio: from nucleus_area_pct.
+      Form Factor: computed from true_cell_area and true_perimeter (Step 4 physical-unit output),
+        NOT from raw cell_area_px / perimeter_px — magnification-invariant.
+      Chromaticity (r_ratio, g_ratio only — b_ratio dropped): from protocol-shifted
+        mean_r/g/b produced in-place by Step 5.
+      Size Anomaly: from cell_diameter_um and mcv_fl.
+    output: "data/intermediate/feature_engineered.csv"
+
+  step_7_drop_sources:
+    member: 2
+    task: "Drop source features after engineering (multicollinearity prevention)"
+    description: |
+      Drop features that are now fully encoded by engineered ones:
+        nucleus_area_pct → nc_ratio           (monotonic bijection, VIF=∞)
+        cell_area_px     → true_cell_area + form_factor
+        perimeter_px     → true_perimeter (used by form_factor), then true_perimeter dropped too
+        mean_r/g/b       → r_ratio, g_ratio   (chromaticity post-shift)
+        b_ratio          → 1 - r_ratio - g_ratio (perfect linear dependency, VIF=∞)
+        cell_diameter_um → size_anomaly        (direct divisor, VIF=∞)
+        mcv_fl           → size_anomaly        (direct divisor, VIF=∞)
+        true_perimeter   → form_factor = 4π·true_cell_area/true_perimeter² (VIF=∞)
+    output: "data/intermediate/sources_dropped.csv"
+
+  step_8_categorical:
     member: 2
     task: "Encode categorical variables"
-    description: "One-Hot/Target/Ordinal encoding, drop leakage (disease_category)"
-    input: "data/intermediate/numeric_processed.csv"
+    description: "One-Hot encoding (staining_protocol, patient_sex), Ordinal encoding (patient_age_group)"
+    input: "data/intermediate/sources_dropped.csv"
     output: "data/intermediate/categorical_encoded.csv"
-    
-  step_8:
-    member: 2
-    task: "Create domain-based features"
-    description: "N/C Ratio, Form Factor, Chromaticity, Size Anomaly"
-    output: "data/intermediate/feature_engineered.csv"
     
   step_9:
     member: 2
@@ -511,8 +573,8 @@ pipeline_order:
   # -------------------------------------------------------------------------
   step_15:
     member: "leader"
-    task: "Train 8 classification models with hyperparameter tuning"
-    description: "Decision Tree, Naive Bayes, KNN, Logistic Regression, Random Forest, XGBoost, SVM, MLP"
+    task: "Train 6 classification models with fixed hyperparameters"
+    description: "Decision Tree, Naive Bayes, KNN, Logistic Regression, Random Forest, XGBoost"
     input: "data/processed/model_input.csv"
     output: "models/saved/"
     
@@ -525,7 +587,7 @@ pipeline_order:
 # =============================================================================
 # MODEL TRAINING CONFIGURATION (Leader)
 # =============================================================================
-# 8 Models to train and evaluate
+# 6 Models to train and evaluate
 # =============================================================================
 model_training:
   # Input from pre-processed data
@@ -533,7 +595,7 @@ model_training:
     processed_data: "data/processed/model_input.csv"
     target_column: "anomaly_label"
     
-  # Models to evaluate (8 total)
+  # Models to evaluate (6 total)
   models:
     # 1. Decision Tree
     - name: "Decision Tree"
@@ -544,18 +606,19 @@ model_training:
         min_samples_split: 5
         min_samples_leaf: 2
         class_weight: "balanced"
-      hyperparams:
-        max_depth: [5, 10, 15, None]
-        min_samples_split: [2, 5, 10]
-        
+        random_state: 42
+        ccp_alpha: 0.0
+        splitter: "best"
+        min_weight_fraction_leaf: 0.0
+        max_features: "sqrt"
+
     # 2. Naive Bayes
     - name: "Naive Bayes"
       type: "probabilistic"
       params:
         variant: "GaussianNB"
+        var_smoothing: 1e-09
       # Note: Requires normal distribution - ensure Yeo-Johnson transform applied
-      hyperparams:
-        var_smoothing: [1e-9, 1e-8, 1e-7, 1e-6]
         
     # 3. K-Nearest Neighbors (KNN)
     - name: "K-Nearest Neighbors"
@@ -565,24 +628,22 @@ model_training:
         weights: "distance"
         metric: "minkowski"
         p: 2
-      hyperparams:
-        n_neighbors: [3, 5, 7, 9, 11]
-        weights: ["uniform", "distance"]
-        metric: ["euclidean", "manhattan", "minkowski"]
-        
+        leaf_size: 30
+        algorithm: "auto"
+        n_jobs: -1
+
     # 4. Logistic Regression
     - name: "Logistic Regression"
       type: "linear"
       params:
-        penalty: "l2"
         C: 1.0
         solver: "lbfgs"
-        max_iter: 1000
+        max_iter: 5000
         class_weight: "balanced"
-      hyperparams:
-        C: [0.01, 0.1, 1, 10, 100]
-        penalty: ["l1", "l2"]
-        
+        random_state: 42
+        tol: 1e-4
+        dual: false
+
     # 5. Random Forest
     - name: "Random Forest"
       type: "ensemble"
@@ -593,11 +654,9 @@ model_training:
         min_samples_leaf: 2
         class_weight: "balanced"
         random_state: 42
-      hyperparams:
-        n_estimators: [50, 100, 200]
-        max_depth: [5, 10, 15, None]
-        min_samples_split: [2, 5, 10]
-        
+        bootstrap: true
+        max_features: "sqrt"
+
     # 6. XGBoost
     - name: "XGBoost"
       type: "gradient_boosting"
@@ -609,53 +668,12 @@ model_training:
         colsample_bytree: 0.8
         scale_pos_weight: 3  # Adjust for imbalance
         random_state: 42
-        use_label_encoder: false
         eval_metric: "logloss"
-      hyperparams:
-        n_estimators: [50, 100, 200]
-        max_depth: [3, 6, 9]
-        learning_rate: [0.01, 0.1, 0.2]
-        subsample: [0.7, 0.8, 0.9]
-        
-    # 7. Support Vector Machine (SVM)
-    - name: "SVM"
-      type: "kernel-based"
-      params:
-        kernel: "rbf"
-        C: 1.0
-        gamma: "scale"
-        class_weight: "balanced"
-        probability: true
-      hyperparams:
-        C: [0.1, 1, 10, 100]
-        kernel: ["rbf", "linear", "poly"]
-        gamma: ["scale", "auto", 0.1, 0.01]
-        
-    # 8. Multi-Layer Perceptron (MLP)
-    - name: "MLP"
-      type: "neural_network"
-      params:
-        hidden_layer_sizes: [64, 32]
-        activation: "relu"
-        solver: "adam"
-        alpha: 0.001
-        batch_size: "auto"
-        learning_rate: "adaptive"
-        learning_rate_init: 0.001
-        max_iter: 500
-        early_stopping: true
-        validation_fraction: 0.1
-        random_state: 42
-      hyperparams:
-        hidden_layer_sizes: [[64, 32], [128, 64], [64, 32, 16]]
-        activation: ["relu", "tanh"]
-        solver: ["adam", "sgd"]
-        alpha: [0.0001, 0.001, 0.01]
-  
+
   # Training configuration
   training:
-    validation_strategy: "stratified_kfold"
-    cv_folds: 5
+    method: "train_test_split"
+    stratified: true
     test_size: 0.2
     random_state: 42
     
@@ -667,13 +685,6 @@ model_training:
     - "f1_score"
     - "roc_auc"
     - "confusion_matrix"
-    
-  # Hyperparameter tuning
-  hyperparameter_tuning:
-    method: "grid_search"
-    cv_folds: 5
-    scoring: "f1"  # Optimize for F1 due to class imbalance
-    n_jobs: -1  # Use all CPU cores
     
   # Model selection criteria
   selection_criteria:
@@ -690,7 +701,7 @@ model_training:
     - "f1_score"
     - "roc_auc"
     - "training_time_seconds"
-    - "hyperparams"
+    - "params"
 
 # =============================================================================
 # OUTPUT FILES
@@ -735,7 +746,10 @@ output:
     model_metrics: "models/metrics.json"
     training_report: "reports/training_report.md"
     evaluation_report: "reports/evaluation_report.md"
-    confusion_matrix: "reports/confusion_matrix.png"
-    roc_curve: "reports/roc_curve.png"
+    model_comparison_summary: "reports/model_comparison_summary.json"
+    confusion_matrix_pattern: "reports/{model_name}_confusion_matrix.png"
+    roc_curve_pattern: "reports/{model_name}_roc_curve.png"
+    shap_summary_pattern: "reports/{model_name}_shap_summary.png"
+    permutation_importance_pattern: "reports/{model_name}_permutation_importance.png"
     feature_importance: "reports/feature_importance.png"
    

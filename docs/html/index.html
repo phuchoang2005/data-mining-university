@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blood Cell Classification — Preprocessing Pipeline</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+
+  <!-- Apply theme before first paint (no flash) -->
+  <script>
+    (function () {
+      const saved = localStorage.getItem('theme');
+      const sys   = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-bs-theme', saved || sys);
+    })();
+  </script>
+
+  <!-- KaTeX deferred: guaranteed to run after full DOM is parsed -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{
+      delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],
+      throwOnError:false, trust:true,
+      macros:{'\\\\iff':'\\\\Leftrightarrow','\\\\coloneqq':':='}
+    });">
+  </script>
+
+  <style>
+    /* ═══ Layout constants ═══ */
+    :root {
+      --sidebar-width: 290px;
+      --accent:  #0d6efd;
+      --group-a: #d63384;
+      --group-b: #198754;
+      --group-c: #0dcaf0;
+      --group-d: #6c757d;
+    }
+
+    /* ═══ Dark tokens ═══ */
+    [data-bs-theme="dark"] {
+      --sb-bg:            #0f172a;
+      --sb-border:        #1e293b;
+      --sb-link:          #94a3b8;
+      --sb-link-hover-bg: #1e293b;
+      --sb-link-hover:    #f1f5f9;
+      --sb-section:       #475569;
+      --card-bg:          #0f172a;
+      --card-border:      #1e293b;
+      --card-hdr-bg:      #1e293b;
+      --card-hdr-border:  #334155;
+      --formula-bg:       #020617;
+      --formula-border:   #334155;
+      --rationale-bg:     #0c1a2e;
+      --rationale-color:  #93c5fd;
+      --rationale-border: #3b82f6;
+      --code-color:       #67e8f9;
+      --pre-bg:           #020617;
+      --pre-border:       #1e293b;
+      --pre-code:         #e2e8f0;
+      --hero-grad:        linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);
+      --hero-border:      #312e81;
+      --why-bg:           #052e16;
+      --why-border:       #166534;
+      --why-color:        #86efac;
+      --warn-bg:          #1c0a00;
+      --warn-border:      #92400e;
+      --warn-color:       #fbbf24;
+      --img-overlay:      rgba(0,0,0,.15);
+    }
+
+    /* ═══ Light tokens ═══ */
+    [data-bs-theme="light"] {
+      --sb-bg:            #f8fafc;
+      --sb-border:        #e2e8f0;
+      --sb-link:          #475569;
+      --sb-link-hover-bg: #e2e8f0;
+      --sb-link-hover:    #0f172a;
+      --sb-section:       #94a3b8;
+      --card-bg:          #ffffff;
+      --card-border:      #e2e8f0;
+      --card-hdr-bg:      #f8fafc;
+      --card-hdr-border:  #e2e8f0;
+      --formula-bg:       #f1f5f9;
+      --formula-border:   #cbd5e1;
+      --rationale-bg:     #eff6ff;
+      --rationale-color:  #1d4ed8;
+      --rationale-border: #3b82f6;
+      --code-color:       #0369a1;
+      --pre-bg:           #f1f5f9;
+      --pre-border:       #cbd5e1;
+      --pre-code:         #1e293b;
+      --hero-grad:        linear-gradient(135deg,#eef2ff 0%,#e0e7ff 100%);
+      --hero-border:      #a5b4fc;
+      --why-bg:           #f0fdf4;
+      --why-border:       #86efac;
+      --why-color:        #15803d;
+      --warn-bg:          #fffbeb;
+      --warn-border:      #fcd34d;
+      --warn-color:       #78350f;
+      --img-overlay:      rgba(255,255,255,0);
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family:'Segoe UI',system-ui,sans-serif; transition:background .2s,color .2s; }
+
+    /* ═══ Sidebar ═══ */
+    #sidebar {
+      width: var(--sidebar-width);
+      min-height: 100vh;
+      position: fixed; top:0; left:0;
+      background: var(--sb-bg);
+      border-right: 1px solid var(--sb-border);
+      overflow-y: auto;
+      z-index: 1000;
+      transition: transform .25s ease, background .2s, border-color .2s;
+    }
+    #sidebar .nav-link {
+      color: var(--sb-link);
+      font-size: .82rem;
+      padding: .3rem 1.1rem;
+      border-left: 3px solid transparent;
+      border-radius: 0;
+      transition: color .15s, background .15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #sidebar .nav-link:hover, #sidebar .nav-link.active {
+      color: var(--sb-link-hover);
+      background: var(--sb-link-hover-bg);
+      border-left-color: var(--accent);
+    }
+    #sidebar .nav-section {
+      font-size: .68rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--sb-section);
+      padding: .65rem 1.1rem .2rem;
+      font-weight: 700;
+    }
+
+    /* ═══ Theme toggle ═══ */
+    #theme-toggle {
+      background: none;
+      border: 1px solid var(--sb-border);
+      border-radius: .4rem;
+      padding: .3rem .55rem;
+      cursor: pointer;
+      font-size: .78rem;
+      color: var(--sb-link);
+      transition: all .15s;
+      display: flex; align-items: center; gap: .3rem;
+      flex-shrink: 0;
+    }
+    #theme-toggle:hover { background: var(--sb-link-hover-bg); color: var(--sb-link-hover); }
+
+    /* ═══ Main content — responsive for FHD+ ═══ */
+    #main-content {
+      margin-left: var(--sidebar-width);
+      padding: 2rem 3rem;
+      max-width: 1500px;
+    }
+    @media (min-width: 1920px) {
+      :root { --sidebar-width: 310px; }
+      #main-content { padding: 2.5rem 4.5rem; max-width: 1700px; }
+      body { font-size: 1.05rem; }
+    }
+    @media (min-width: 2560px) {
+      :root { --sidebar-width: 340px; }
+      #main-content { padding: 3rem 6rem; max-width: 2100px; }
+      body { font-size: 1.1rem; }
+    }
+    @media (max-width: 768px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.show { transform: translateX(0); }
+      #main-content { margin-left: 0; padding: 1rem; }
+    }
+
+    .section-anchor { scroll-margin-top: 1.5rem; }
+
+    /* ═══ Cards ═══ */
+    .card { border: 1px solid var(--card-border) !important; background: var(--card-bg) !important; }
+    .card-header { background: var(--card-hdr-bg) !important; border-bottom: 1px solid var(--card-hdr-border) !important; }
+
+    /* ═══ Badges ═══ */
+    .badge-a { background: var(--group-a); color:#fff; }
+    .badge-b { background: var(--group-b); color:#fff; }
+    .badge-c { background: var(--group-c); color:#000; }
+    .badge-d { background: var(--group-d); color:#fff; }
+
+    /* ═══ Pill chips ═══ */
+    .feat-pill {
+      display: inline-block;
+      padding: .18rem .55rem;
+      border-radius: 99px;
+      font-size: .75rem;
+      font-weight: 600;
+      margin: .12rem;
+      border: 1px solid currentColor;
+      opacity: .85;
+    }
+    .pill-a { color: var(--group-a); }
+    .pill-b { color: var(--group-b); }
+    .pill-c { color: var(--group-c); }
+    .pill-eng { color: #7c3aed; }
+    .pill-drop { color: var(--group-d); text-decoration: line-through; opacity:.5; }
+
+    /* ═══ Step number ═══ */
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 2rem; height: 2rem;
+      border-radius: 50%;
+      background: var(--accent);
+      font-weight: 700; font-size: .82rem;
+      flex-shrink: 0; color: #fff;
+    }
+
+    /* ═══ Formula box ═══ */
+    .formula-box {
+      background: var(--formula-bg);
+      border: 1px solid var(--formula-border);
+      border-radius: .5rem;
+      padding: 1rem 1.5rem;
+      margin: .5rem 0;
+      overflow-x: auto;
+      transition: background .2s, border-color .2s;
+    }
+    .katex-display { margin: .5rem 0 .2rem; overflow-x: auto; overflow-y: hidden; }
+    .katex { color: inherit; }
+    [data-bs-theme="dark"]  .katex { color: #e2e8f0; }
+    [data-bs-theme="light"] .katex { color: #1e293b; }
+
+    /* ═══ Rationale / info boxes ═══ */
+    .rationale {
+      border-left: 3px solid var(--rationale-border);
+      background: var(--rationale-bg);
+      padding: .65rem 1rem;
+      border-radius: 0 .4rem .4rem 0;
+      font-size: .88rem;
+      color: var(--rationale-color);
+      transition: background .2s, color .2s;
+    }
+    .why-box {
+      background: var(--why-bg);
+      border: 1px solid var(--why-border);
+      border-radius: .5rem;
+      padding: .7rem 1rem;
+      font-size: .88rem;
+      color: var(--why-color);
+      transition: background .2s, color .2s;
+    }
+    .warn-box {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      border-radius: .5rem;
+      padding: .7rem 1rem;
+      font-size: .88rem;
+      color: var(--warn-color);
+      transition: background .2s, color .2s;
+    }
+
+    /* ═══ Code ═══ */
+    pre {
+      background: var(--pre-bg);
+      border: 1px solid var(--pre-border);
+      border-radius: .5rem; padding: 1rem;
+      font-size: .8rem; overflow-x: auto;
+    }
+    code { color: var(--code-color); }
+    pre code { color: var(--pre-code); }
+
+    /* ═══ Hero ═══ */
+    .hero {
+      background: var(--hero-grad);
+      border: 1px solid var(--hero-border);
+      border-radius: .75rem;
+      padding: 2rem;
+      margin-bottom: 2.5rem;
+    }
+
+    /* ═══ Group images ═══ */
+    .group-img {
+      width: 100%;
+      border-radius: .5rem;
+      border: 1px solid var(--card-border);
+      transition: border-color .2s, opacity .2s;
+      cursor: zoom-in;
+    }
+    .group-img:hover { opacity: .85; }
+    .img-caption {
+      font-size: .75rem;
+      color: var(--sb-section);
+      text-align: center;
+      margin-top: .3rem;
+    }
+
+    /* ═══ Lightbox ═══ */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,.85);
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox-img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: .5rem;
+      box-shadow: 0 8px 40px rgba(0,0,0,.6);
+      transform-origin: center center;
+      transition: transform .15s ease;
+      cursor: grab;
+      user-select: none;
+    }
+    #lightbox-img.dragging { cursor: grabbing; }
+    #lightbox-controls {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: .5rem;
+      background: rgba(0,0,0,.55);
+      padding: .4rem .8rem;
+      border-radius: 2rem;
+      backdrop-filter: blur(6px);
+    }
+    #lightbox-controls button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.2rem;
+      line-height: 1;
+      padding: .3rem .5rem;
+      border-radius: .4rem;
+      cursor: pointer;
+      opacity: .85;
+      transition: opacity .15s, background .15s;
+    }
+    #lightbox-controls button:hover { opacity: 1; background: rgba(255,255,255,.15); }
+    #lightbox-close {
+      position: fixed;
+      top: 1rem;
+      right: 1.25rem;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.8rem;
+      line-height: 1;
+      cursor: pointer;
+      opacity: .8;
+      transition: opacity .15s;
+    }
+    #lightbox-close:hover { opacity: 1; }
+
+    /* ═══ Table ═══ */
+    .table { font-size: .85rem; }
+    .table th { font-weight: 600; }
+
+    /* ═══ Param table ═══ */
+    .param-row td:first-child { font-family: monospace; font-size: .82rem; white-space: nowrap; }
+    .param-row td:nth-child(2) { font-weight: 600; font-size: .82rem; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+<nav id="sidebar">
+  <div class="p-3 border-bottom border-secondary">
+    <div class="d-flex align-items-center justify-content-between gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-activity text-danger fs-5"></i>
+        <div>
+          <div class="fw-bold text-body-emphasis" style="font-size:.88rem">Blood Cell Pipeline</div>
+          <div class="text-muted" style="font-size:.7rem">Preprocessing Docs</div>
+        </div>
+      </div>
+      <button id="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+        <i id="theme-icon" class="bi bi-moon-stars-fill"></i>
+        <span id="theme-label">Dark</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="py-2">
+    <div class="nav-section">Overview</div>
+    <a class="nav-link" href="#overview">Pipeline Overview</a>
+    <a class="nav-link" href="#dataset">Dataset &amp; Problem</a>
+
+    <div class="nav-section">Numeric (Steps 1–4)</div>
+    <a class="nav-link" href="#step1">1 — Confidence Filter</a>
+    <a class="nav-link" href="#step2">2 — IQR Trimming</a>
+    <a class="nav-link" href="#step3">3 — Drop Leakage</a>
+    <a class="nav-link" href="#step4">4 — Physical Units</a>
+
+    <div class="nav-section">Engineering (Steps 5–9)</div>
+    <a class="nav-link" href="#step5">5 — Protocol Shifting</a>
+    <a class="nav-link" href="#step6">6 — Feature Engineering</a>
+    <a class="nav-link" href="#step7">7 — Drop Source Features</a>
+    <a class="nav-link" href="#step8">8 — Categorical Encoding</a>
+    <a class="nav-link" href="#step10">10 — Per-Group Scaling</a>
+
+    <div class="nav-section">Augmentation (Steps 11–13)</div>
+    <a class="nav-link" href="#step11">11 — GMM Clustering</a>
+    <a class="nav-link" href="#step12">12 — Gaussian Noise</a>
+    <a class="nav-link" href="#step13">13 — Covariate Shift</a>
+
+    <div class="nav-section">Selection &amp; Balance</div>
+    <a class="nav-link" href="#step14">14 — Feature Selection</a>
+    <a class="nav-link" href="#step15">15 — SMOTE-Tomek</a>
+
+    <div class="nav-section">Models</div>
+    <a class="nav-link" href="#hyperparams">Hyperparameter Choices</a>
+
+    <div class="nav-section">Reference</div>
+    <a class="nav-link" href="#summary-table">Method Summary</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════ MAIN ═══════════════════════════════ -->
+<main id="main-content">
+
+  <button class="btn btn-sm btn-secondary d-md-none mb-3"
+          onclick="document.getElementById('sidebar').classList.toggle('show')">
+    <i class="bi bi-list"></i> Menu
+  </button>
+
+  <!-- ── HERO ── -->
+  <div class="hero section-anchor" id="overview">
+    <div class="d-flex align-items-start gap-3">
+      <i class="bi bi-diagram-3 text-primary fs-1"></i>
+      <div>
+        <h1 class="h3 fw-bold text-body-emphasis mb-1">Blood Cell Classification — Preprocessing Pipeline</h1>
+        <p class="text-secondary mb-2">A complete guide to every method: <em>what</em> it is, <em>why</em> it was chosen, and the <em>math</em> behind it. Sourced from <code>config.yml</code> and EDA findings.</p>
+        <div class="d-flex flex-wrap gap-2">
+          <span class="badge badge-a">Group A — Pathology Signals</span>
+          <span class="badge badge-b">Group B — Morphology</span>
+          <span class="badge badge-c">Group C — Hematology / Noise</span>
+          <span class="badge badge-d">Group D — Governance</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DATASET ── -->
+  <section class="section-anchor mb-5" id="dataset">
+    <h2 class="h5 fw-bold text-body-emphasis mb-3"><i class="bi bi-database me-2 text-primary"></i>Dataset &amp; Problem Statement</h2>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card h-100"><div class="card-body">
+          <div class="text-secondary text-uppercase mb-1" style="font-size:.7rem;letter-spacing:.08em">Task</div>
+          <p class="fw-semibold text-body-emphasis mb-1">Binary classification: <code>anomaly_label ∈ {0, 1}</code></p>
+          <p class="text-secondary small mb-0">0 = Normal &nbsp;·&nbsp; 1 = Abnormal / pathological blood cell</p>
+        </div></div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100"><div class="card-body">
+          <div class="text-secondary text-uppercase mb-1" style="font-size:.7rem;letter-spacing:.08em">Optimization target</div>
+          <p class="fw-semibold text-body-emphasis mb-1">F1-Score (primary) · ROC-AUC (secondary)</p>
+          <p class="text-secondary small mb-0">Class skewness = 0.77 → accuracy alone is misleading for imbalanced data</p>
+        </div></div>
+      </div>
+      <div class="col-4"><div class="card h-100"><div class="card-body text-center">
+        <div class="display-6 fw-bold text-primary">5 880</div>
+        <div class="text-secondary small">samples</div>
+      </div></div></div>
+      <div class="col-4"><div class="card h-100"><div class="card-body text-center">
+        <div class="display-6 fw-bold text-primary">36</div>
+        <div class="text-secondary small">raw attributes</div>
+      </div></div></div>
+      <div class="col-4"><div class="card h-100"><div class="card-body text-center">
+        <div class="display-6 fw-bold text-primary">6</div>
+        <div class="text-secondary small">models trained</div>
+      </div></div></div>
+    </div>
+  </section>
+
+  <!-- ── PIPELINE OVERVIEW ── -->
+  <section class="section-anchor mb-5">
+    <h2 class="h5 fw-bold text-body-emphasis mb-3"><i class="bi bi-arrow-down-circle me-2 text-primary"></i>Pipeline at a Glance</h2>
+    <p class="text-secondary small mb-3">An <code>ImbPipeline</code> (imbalanced-learn) with 15 ordered steps. Steps 9 &amp; 10 are utility drops so there is no separate section for them.</p>
+    <div class="card">
+      <div class="card-body p-3" style="font-size:.83rem">
+        <div class="row g-0">
+          <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num">1</span><span>Confidence filter <span class="text-muted">(Group D row filter)</span></span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num">2</span><span>IQR trimming <span class="text-muted">(Group C outliers)</span></span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num">3</span><span>Drop leakage &amp; ID columns</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num">4</span><span>Physical unit normalization</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#7c3aed">5</span><span>Protocol shifting <span class="text-muted">(before feat. eng.)</span></span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#7c3aed">6</span><span>Feature engineering</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#7c3aed">7</span><span>Drop source features <span class="text-warning">(new)</span></span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2">
+              <span class="step-num" style="background:#7c3aed">8</span><span>Categorical encoding</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#6366f1">9</span><span>Drop utility columns</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#6366f1">10</span><span>Per-group numeric scaling</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#6366f1">11</span><span>GMM clustering</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#6366f1">12</span><span>Gaussian noise augmentation</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#6366f1">13</span><span>Covariate shift simulation</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="border-color:var(--card-border)!important">
+              <span class="step-num" style="background:#6366f1">14</span><span>Feature selection (VIF→Corr→MI→RFECV)</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2">
+              <span class="step-num" style="background:#6366f1">15</span><span>SMOTE-Tomek</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 1 ═══════════════ -->
+  <section class="section-anchor mb-5" id="step1">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num">1</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Confidence Filter — Group D Row Drop</h2>
+      <span class="badge badge-d ms-1">Group D</span>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-funnel text-warning me-2"></i><span class="fw-semibold">Method: Row filter on <code>labeller_confidence_score ≥ 0.5</code></span></div>
+      <div class="card-body">
+        <p>Records how confident the human annotator was when assigning a label. Left-skewed: annotators are more confident about <em>normal</em> cells than <em>abnormal</em> ones.</p>
+        <div class="formula-box mb-3">$$\text{keep row} \Leftrightarrow \text{labeller\_confidence\_score} \geq 0.5$$</div>
+        <div class="rationale mb-3"><i class="bi bi-lightbulb me-1"></i><strong>Why threshold = 0.5?</strong> Rows below 0.5 are label-uncertain — training on them introduces systematic noise into the decision boundary while retaining the majority of data.</div>
+        <div class="warn-box">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          <strong>Also dropped from Group D (data leakage):</strong>
+          <code>cytodiffusion_anomaly_score</code> and <code>cytodiffusion_classification_confidence</code> — produced by the same cytodiffusion system as <code>anomaly_label</code>. Their KDE shows 100% class separation: a textbook leakage signature.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 2 ═══════════════ -->
+  <section class="section-anchor mb-5" id="step2">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num">2</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">IQR Trimming — Group C Outliers</h2>
+      <span class="badge badge-c ms-1">Group C</span>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-scissors text-info me-2"></i><span class="fw-semibold">Method: Tukey IQR Fences (multiplier 1.5) — row deletion</span></div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-lg-7">
+            <div class="formula-box">
+              $$Q_1 = P_{25},\quad Q_3 = P_{75},\quad \text{IQR} = Q_3 - Q_1$$
+              $$\text{Lower fence} = Q_1 - 1.5\!\times\!\text{IQR}$$
+              $$\text{Upper fence} = Q_3 + 1.5\!\times\!\text{IQR}$$
+              $$\text{Remove row where } x_i < \text{Lower fence} \text{ or } x_i > \text{Upper fence}$$
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="rationale h-100">
+              <strong><i class="bi bi-lightbulb me-1"></i>Why delete rows (trimming) instead of capping?</strong><br/>
+              Group C distributions are symmetric and near-Gaussian (see EDA chart). Extreme values are measurement errors or device noise — genuine corrupted observations, not biological outliers. Deleting them is correct; capping would keep corrupted values in the dataset.<br/><br/>
+              <strong>Contrast Group A:</strong> Outliers there are real pathology signals → capped, not removed.
+            </div>
+          </div>
+        </div>
+        <div class="text-secondary text-uppercase mb-2" style="font-size:.7rem;letter-spacing:.08em">Group C features trimmed</div>
+        <div class="d-flex flex-wrap gap-1 mb-3">
+          <span class="feat-pill pill-c">wbc_count_per_ul</span>
+          <span class="feat-pill pill-c">rbc_count_millions_per_ul</span>
+          <span class="feat-pill pill-c">hemoglobin_g_dl</span>
+          <span class="feat-pill pill-c">hematocrit_pct</span>
+          <span class="feat-pill pill-c">platelet_count_per_ul</span>
+          <span class="feat-pill pill-c">mcv_fl</span>
+          <span class="feat-pill pill-c">mchc_g_dl</span>
+          <span class="feat-pill pill-c">mean_r</span>
+          <span class="feat-pill pill-c">mean_g</span>
+          <span class="feat-pill pill-c">mean_b</span>
+          <span class="feat-pill pill-c">stain_intensity</span>
+        </div>
+        <img src="NhomC.png" alt="Group C EDA distributions" class="group-img" />
+        <div class="img-caption">EDA: Group C KDE plots — near-Gaussian, KDEs for label 0/1 overlap completely (low discriminative power)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 3 ═══════════════ -->
+  <section class="section-anchor mb-5" id="step3">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num">3</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Drop Leakage &amp; Irrelevant Columns</h2>
+    </div>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th class="ps-3">Column</th><th>Reason for Dropping</th><th>Evidence</th></tr></thead>
+          <tbody>
+            <tr><td class="ps-3"><code>cell_id</code></td><td>Row identifier — no predictive value</td><td>—</td></tr>
+            <tr><td class="ps-3"><code>disease_category</code></td><td><span class="badge bg-danger">Leakage</span> Contains target-derived labels ("Leukemia", "Normal_WBC")</td><td>p = 0.0</td></tr>
+            <tr><td class="ps-3"><code>cytodiffusion_anomaly_score</code></td><td><span class="badge bg-danger">Leakage</span> Output of same cytodiffusion system as target</td><td>100% KDE separation</td></tr>
+            <tr><td class="ps-3"><code>cytodiffusion_classification_confidence</code></td><td><span class="badge bg-danger">Leakage</span> Companion confidence from same system</td><td>100% KDE separation</td></tr>
+            <tr><td class="ps-3"><code>cell_type</code></td><td><span class="badge bg-danger">Leakage</span> p=0.0 but directly encodes disease state</td><td>p = 0.0</td></tr>
+            <tr><td class="ps-3"><code>dataset_source</code></td><td>No statistical association with target</td><td>p = 0.520</td></tr>
+            <tr><td class="ps-3"><code>microscope_model</code></td><td>No statistical association; dropping improves generalisability</td><td>p = 0.408</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 4 ═══════════════ -->
+  <section class="section-anchor mb-5" id="step4">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num">4</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Physical Unit Normalization</h2>
+      <span class="badge badge-b ms-1">Group B</span>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-rulers text-success me-2"></i><span class="fw-semibold">Method: Magnification-aware conversion (px → µm)</span></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="formula-box">
+              $$\text{true\_cell\_area} = \frac{\text{cell\_area\_px}}{(\text{magnification\_x})^2}$$
+              $$\text{true\_perimeter} = \frac{\text{perimeter\_px}}{\text{magnification\_x}}$$
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="rationale h-100">
+              <i class="bi bi-lightbulb me-1"></i>
+              Pixels are device-dependent: a 300 px cell at 40× and at 100× represent the same physical cell. Area scales with the <em>square</em> of magnification (2-D), perimeter linearly. After conversion both features represent true µm measurements, comparable across all microscopes in the dataset.<br/><br/>
+              <code>magnification_x</code> is dropped in Step 9 once it is no longer needed.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 5 — PROTOCOL SHIFT (before feat eng) ═══════════════ -->
+  <section class="section-anchor mb-5" id="step5">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#7c3aed">5</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Staining Protocol Shifting</h2>
+      <span class="badge badge-c ms-1">Group C</span>
+      <span class="badge bg-warning text-dark ms-1">Must run before Step 6</span>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-palette text-info me-2"></i><span class="fw-semibold">Method: Group-wise mean shift (per staining protocol)</span></div>
+      <div class="card-body">
+        <div class="why-box mb-3">
+          <i class="bi bi-exclamation-circle me-1"></i>
+          <strong>Ordering constraint:</strong> Protocol shifting <em>must</em> run in Step 5, <em>before</em> Feature Engineering in Step 6.
+          If chromaticity ratios were computed first (from raw colors), they would embed staining-protocol bias. By shifting colors first, ratios $R/(R+G+B)$ reflect the cell's true hue, not the choice of Giemsa vs. Wright stain.
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-lg-7">
+            <div class="formula-box">
+              <strong>For protocol $p$ and channel $c \in \{R,G,B,\text{intensity}\}$:</strong>
+              $$\mu_c^{(p)} = \mathbb{E}[c \mid \text{protocol} = p]$$
+              $$\mu_c^{\text{global}} = \mathbb{E}[c]$$
+              $$x_{\text{shifted}} = x - \mu_c^{(p)} + \mu_c^{\text{global}}$$
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="rationale h-100">
+              <strong>Effect:</strong> Each protocol's color distribution is shifted to the global mean. The within-protocol variance is preserved; only the between-protocol offset is removed.<br/><br/>
+              Fitted on <code>X_train</code> only — group means are stored, then applied to <code>X_test</code> without re-fitting, preventing leakage.
+            </div>
+          </div>
+        </div>
+        <div class="text-secondary text-uppercase mb-2" style="font-size:.7rem;letter-spacing:.08em">Affected features</div>
+        <div class="d-flex flex-wrap gap-1">
+          <span class="feat-pill pill-c">mean_r</span>
+          <span class="feat-pill pill-c">mean_g</span>
+          <span class="feat-pill pill-c">mean_b</span>
+          <span class="feat-pill pill-c">stain_intensity</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 6 — FEATURE ENGINEERING ═══════════════ -->
+  <section class="section-anchor mb-5" id="step6">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#7c3aed">6</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Feature Engineering — Domain Knowledge</h2>
+    </div>
+    <p class="text-secondary small mb-3">Medical experts interpret <em>ratios</em> between raw measurements, not the numbers themselves. These five engineered features encode hematological domain knowledge. Color ratios are computed from protocol-shifted colors (Step 5).</p>
+
+    <!-- NC Ratio -->
+    <div class="card mb-3">
+      <div class="card-header"><span class="badge badge-a me-2">Group A → Engineered</span><span class="fw-semibold">1 — N/C Ratio (Nucleus-to-Cytoplasm)</span><span class="badge bg-warning text-dark ms-2">Gold Standard</span></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-5">
+            <div class="formula-box">$$\text{NC\_Ratio} = \frac{\text{nucleus\_area\_pct}}{100 - \text{nucleus\_area\_pct}}$$</div>
+          </div>
+          <div class="col-lg-7">
+            <div class="rationale">
+              The gold standard in hematology for identifying malignant cells. Abnormal / immature cells (blasts, cancer cells) have an enlarged nucleus that occupies most of the cell. NC Ratio = ∞ means the nucleus fills the entire cell; NC Ratio = 0 means no nucleus.<br/><br/>
+              <strong>Source feature dropped after:</strong> <code>nucleus_area_pct</code> is a monotonic bijection of <code>NC_Ratio</code> → VIF = ∞ if both are retained.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Factor -->
+    <div class="card mb-3">
+      <div class="card-header"><span class="badge badge-a me-2">Group A+B → Engineered</span><span class="fw-semibold">2 — Form Factor (Shape Complexity)</span></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-5">
+            <div class="formula-box">$$\text{Form\_Factor} = \frac{4\pi \times \text{true\_cell\_area}}{\text{true\_perimeter}^2}$$</div>
+          </div>
+          <div class="col-lg-7">
+            <div class="rationale">
+              The isoperimetric quotient: 1.0 = perfect circle (normal morphology); lower values indicate elongated, lobulated, or membrane-deformed cells (abnormal). Mathematically, for a fixed area, a circle has the shortest possible perimeter — any deviation reduces this ratio.<br/><br/>
+              <strong>Computed from physical-unit columns</strong> (<code>true_cell_area</code>, <code>true_perimeter</code>) created in Step 4 — not from raw pixel columns — so the ratio is magnification-invariant.<br/><br/>
+              <span class="badge bg-warning text-dark me-1"><i class="bi bi-exclamation-triangle"></i> Note</span>
+              <code>true_perimeter</code> is dropped in Step 7: keeping <code>true_cell_area</code>, <code>true_perimeter</code>, and <code>form_factor</code> together gives VIF = ∞ for <code>true_perimeter</code>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chromaticity -->
+    <div class="card mb-3">
+      <div class="card-header"><span class="badge badge-c me-2">Group C → Engineered</span><span class="fw-semibold">3 — Chromaticity Ratios (from protocol-shifted colors)</span></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="formula-box">
+              $$R_\text{ratio} = \frac{R_\text{shifted}}{R_\text{shifted}+G_\text{shifted}+B_\text{shifted}}$$
+              $$G_\text{ratio} = \frac{G_\text{shifted}}{R_\text{shifted}+G_\text{shifted}+B_\text{shifted}}$$
+            </div>
+            <div class="warn-box mt-2" style="font-size:.82rem">
+              <i class="bi bi-x-circle me-1"></i>
+              <code>b_ratio</code> is <strong>not kept</strong>: $R+G+B=1$ always, so $B = 1 - R - G$ — perfect linear dependency, VIF = ∞.
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="rationale h-100">
+              Raw RGB values change with lighting and stain concentration. Dividing by the total removes the brightness component, leaving only hue. Basophilic cells (blue) vs. eosinophilic cells (pink/red) become clearly separable in chromaticity space.<br/><br/>
+              Computed <em>after</em> protocol shifting (Step 5) so that hue reflects cell biology, not staining methodology.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Size Anomaly -->
+    <div class="card mb-3">
+      <div class="card-header"><span class="badge badge-b me-2">Group B+C → Engineered</span><span class="fw-semibold">4 — Size Anomaly (Cell vs. Patient Baseline)</span></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-5">
+            <div class="formula-box">$$\text{size\_anomaly} = \frac{\text{cell\_diameter\_um}}{\text{mcv\_fl}}$$</div>
+          </div>
+          <div class="col-lg-7">
+            <div class="rationale">
+              A 12 µm cell is normal for one patient but giant for another whose average RBC is 7 µm. <code>mcv_fl</code> (mean corpuscular volume) captures the patient's own baseline. A high ratio flags cells that are anomalously large relative to that patient — a signal for blasts or macrophages.<br/><br/>
+              <span class="badge bg-warning text-dark me-1"><i class="bi bi-exclamation-triangle"></i> Multicollinearity fix</span>
+              Both <code>cell_diameter_um</code> and <code>mcv_fl</code> are <strong>dropped in Step 7</strong> after this feature is computed. Keeping a divisor alongside its ratio (size_anomaly = cell_diameter_um / mcv_fl) inflates VIF for all three — the ratio captures the cross-group interaction; the raw values add no independent signal.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Physical units summary -->
+    <div class="card">
+      <div class="card-header"><span class="badge badge-b me-2">Group B → Engineered</span><span class="fw-semibold">5 — Physical-unit Features (from Step 4)</span></div>
+      <div class="card-body">
+        <p class="text-secondary small mb-0"><code>true_cell_area</code> produced in Step 4 is carried through as an engineered feature. It replaces <code>cell_area_px</code> (dropped in Step 7).<br/>
+        <code>true_perimeter</code> is also produced in Step 4 and is used by Step 6 to compute <code>form_factor</code>, then <strong>dropped in Step 7</strong>: since $\text{form\_factor} = \frac{4\pi \cdot \text{true\_cell\_area}}{\text{true\_perimeter}^2}$, keeping all three creates a perfect linear dependency (VIF = ∞ for <code>true_perimeter</code>).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 7 — DROP SOURCE FEATURES ═══════════════ -->
+  <section class="section-anchor mb-5" id="step7">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#7c3aed">7</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Drop Source Features — Multicollinearity Prevention</h2>
+      <span class="badge bg-warning text-dark ms-1">New Step</span>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-trash3 text-danger me-2"></i><span class="fw-semibold">Rationale: features now fully encoded by engineered ones must be removed</span></div>
+      <div class="card-body">
+        <div class="rationale mb-3">
+          <i class="bi bi-lightbulb me-1"></i>
+          Keeping both a raw feature and its monotonic transformation guarantees perfect multicollinearity (VIF = ∞), which causes:<br/>
+          • Inflated coefficient variance in Logistic Regression and other linear models<br/>
+          • Numerical instability (singular matrices)<br/>
+          • Wasted capacity in the ColumnTransformer and VIF filter (which would drop them anyway, but explicitly removing them here is cleaner and faster)
+        </div>
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Column Dropped</th><th>Replaced By</th><th>Multicollinearity Reason</th></tr></thead>
+          <tbody>
+            <tr><td><code>nucleus_area_pct</code></td><td><code>nc_ratio</code></td><td>Monotonic bijection → $r = 1.0$, VIF = ∞</td></tr>
+            <tr><td><code>cell_area_px</code></td><td><code>true_cell_area</code>, <code>form_factor</code></td><td>Linear rescale of area; form factor uses the same raw pixel value</td></tr>
+            <tr><td><code>perimeter_px</code></td><td><code>true_perimeter</code> → then dropped</td><td>Linear rescale; form factor encodes the same shape ratio</td></tr>
+            <tr><td><code>true_perimeter</code></td><td><code>form_factor</code> + <code>true_cell_area</code></td><td>$\text{form\_factor} = 4\pi \cdot \text{true\_cell\_area} / \text{true\_perimeter}^2$ → recoverable exactly → VIF = ∞</td></tr>
+            <tr><td><code>mean_r</code>, <code>mean_g</code>, <code>mean_b</code></td><td><code>r_ratio</code>, <code>g_ratio</code>, <code>stain_intensity</code></td><td>Hue encoded by ratios; brightness by <code>stain_intensity</code>; keeping absolutes duplicates both</td></tr>
+            <tr><td><code>b_ratio</code></td><td>(implicit: $1 - r\_\text{ratio} - g\_\text{ratio}$)</td><td>$r+g+b \equiv 1$ → perfect linear dependency, VIF = ∞</td></tr>
+            <tr class="table-warning"><td><code>cell_diameter_um</code></td><td><code>size_anomaly</code></td><td>Direct divisor of the ratio — keeping source + ratio inflates VIF for all three</td></tr>
+            <tr class="table-warning"><td><code>mcv_fl</code></td><td><code>size_anomaly</code></td><td>Direct divisor of the ratio — keeping source + ratio inflates VIF for all three</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 8 — CATEGORICAL ═══════════════ -->
+  <section class="section-anchor mb-5" id="step8">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#7c3aed">8</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Categorical Encoding</h2>
+    </div>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th class="ps-3">Feature</th><th>Method</th><th>Rationale</th><th>p-value</th></tr></thead>
+          <tbody>
+            <tr><td class="ps-3"><code>staining_protocol</code></td><td><span class="badge bg-primary">One-Hot Encoding</span></td><td>3 nominal values (Giemsa, Wright, …) — no ordinal relationship</td><td>0.026 ✓</td></tr>
+            <tr><td class="ps-3"><code>patient_sex</code></td><td><span class="badge bg-primary">One-Hot Encoding</span></td><td>2 nominal values (M/F) — kept as control variable</td><td>0.376</td></tr>
+            <tr><td class="ps-3"><code>patient_age_group</code></td><td><span class="badge bg-info text-dark">Ordinal Encoding</span></td><td>Pediatric &lt; Adult &lt; Elderly — natural order exists; ordinal preserves it without dummy explosion</td><td>0.589</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-body border-top" style="border-color:var(--card-border)!important">
+        <div class="formula-box">$$\text{Pediatric} \to 1,\quad \text{Adult} \to 2,\quad \text{Elderly} \to 3$$</div>
+        <div class="rationale mt-2">OHE on an ordered variable would create three binary features with no implied magnitude relationship. Ordinal encoding preserves the monotonic biological effect of age while reducing dimensionality by 2.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 10 — SCALING ═══════════════ -->
+  <section class="section-anchor mb-5" id="step10">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#6366f1">10</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Per-Group Numeric Scaling (ColumnTransformer)</h2>
+    </div>
+    <p class="text-secondary small mb-3">A <code>ColumnTransformer</code> applies a different sub-pipeline to each feature group based on its statistical profile. Each group's scaler is justified by EDA distribution analysis.</p>
+
+    <!-- Group A -->
+    <div class="card mb-4 border-danger">
+      <div class="card-header border-bottom border-danger">
+        <span class="badge badge-a me-2">Group A</span>
+        <span class="fw-semibold">Pathology Signals → Winsorization [1,99%] → Yeo-Johnson → RobustScaler</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-xl-4">
+            <div class="text-secondary text-uppercase mb-2" style="font-size:.7rem;letter-spacing:.08em">Features after Step 7</div>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+              <span class="feat-pill pill-a">eccentricity</span>
+              <span class="feat-pill pill-a">lobularity_score</span>
+              <span class="feat-pill pill-a">chromatin_density</span>
+              <span class="feat-pill pill-drop">nucleus_area_pct ✕</span>
+              <span class="feat-pill pill-a">circularity</span>
+            </div>
+            <img src="NhomA.png" alt="Group A distributions" class="group-img" />
+            <div class="img-caption">EDA: heavy right skew, well-separated KDEs — pathological outliers present and meaningful</div>
+          </div>
+          <div class="col-xl-8">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <h6 class="fw-semibold text-body-emphasis">1 · Winsorization</h6>
+                <div class="formula-box" style="font-size:.78rem">
+                  $$x' = \begin{cases} P_1 & x < P_1 \\ x & P_1 \le x \le P_{99} \\ P_{99} & x > P_{99} \end{cases}$$
+                </div>
+                <p class="text-secondary small mt-2 mb-0"><strong>Why cap not trim:</strong> Extreme values here ARE real pathology signals. Capping bounds them so they don't dominate linear models, while preserving the information that they are extreme.</p>
+              </div>
+              <div class="col-md-4">
+                <h6 class="fw-semibold text-body-emphasis">2 · Yeo-Johnson Transform</h6>
+                <div class="formula-box" style="font-size:.75rem">
+                  $$\psi(x,\!\lambda)\!=\!\begin{cases}\frac{(x+1)^\lambda-1}{\lambda} & x\!\ge\!0,\lambda\!\ne\!0\\\ln(x+1) & x\!\ge\!0,\lambda\!=\!0\\\frac{-((-x+1)^{2-\lambda}-1)}{2-\lambda} & x\!<\!0,\lambda\!\ne\!2\\-\ln(-x+1) & x\!<\!0,\lambda\!=\!2\end{cases}$$
+                </div>
+                <p class="text-secondary small mt-2 mb-0"><strong>Why not Box-Cox:</strong> Box-Cox requires $x > 0$ strictly. Yeo-Johnson handles non-positive values — needed since features may cross zero after centering. $\lambda$ is optimised via MLE per feature.</p>
+              </div>
+              <div class="col-md-4">
+                <h6 class="fw-semibold text-body-emphasis">3 · RobustScaler</h6>
+                <div class="formula-box" style="font-size:.78rem">
+                  $$x' = \frac{x - \text{median}(x)}{\text{IQR}(x)}$$
+                </div>
+                <p class="text-secondary small mt-2 mb-0"><strong>Why not StandardScaler:</strong> StandardScaler uses mean and σ — both non-robust to outliers. Median and IQR are breakdown-point ≥ 25%, making RobustScaler resistant to residual extremes after capping.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group B -->
+    <div class="card mb-4 border-success">
+      <div class="card-header border-bottom border-success">
+        <span class="badge badge-b me-2">Group B</span>
+        <span class="fw-semibold">Morphology → Winsorization [1,99%] → QuantileTransformer (uniform) → StandardScaler</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-xl-4">
+            <div class="text-secondary text-uppercase mb-2" style="font-size:.7rem;letter-spacing:.08em">Features after Step 7</div>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+              <span class="feat-pill pill-drop">cell_diameter_um ✕</span>
+              <span class="feat-pill pill-drop">cell_area_px ✕</span>
+              <span class="feat-pill pill-drop">perimeter_px ✕</span>
+              <span class="feat-pill pill-b">cytoplasm_ratio</span>
+              <span class="feat-pill pill-b">membrane_smoothness</span>
+              <span class="feat-pill pill-b">granularity_score</span>
+            </div>
+            <img src="NhomB.png" alt="Group B distributions" class="group-img" />
+            <div class="img-caption">EDA: multi-modal distributions — multiple peaks caused by different cell sub-populations in one dataset</div>
+          </div>
+          <div class="col-xl-8">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <h6 class="fw-semibold text-body-emphasis">QuantileTransformer (uniform output)</h6>
+                <div class="formula-box" style="font-size:.78rem">
+                  $$x' = F_{\text{uniform}}^{-1}\!\bigl(F_{\text{empirical}}(x)\bigr)$$
+                </div>
+                <p class="text-secondary small mt-2 mb-0">Maps each value to its empirical quantile rank, then maps that rank to $\mathcal{U}(0,1)$. The result: each feature is flattened to a uniform distribution regardless of original shape — multi-modal peaks and skewness are both resolved in one step.</p>
+              </div>
+              <div class="col-md-6">
+                <div class="rationale mt-2">
+                  <strong><i class="bi bi-lightbulb me-1"></i>Why QuantileTransformer over Yeo-Johnson for Group B?</strong><br/>
+                  Yeo-Johnson reduces skewness but <em>cannot handle multimodality</em> — it would leave the multiple peaks intact. QuantileTransformer's rank-based mapping treats every quantile equally, producing a flat distribution that allows models to find a consistent decision boundary across all sub-populations.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group C -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="badge badge-c me-2">Group C</span>
+        <span class="fw-semibold">Hematology / Noise → MinMaxScaler only</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-xl-4">
+            <div class="text-secondary text-uppercase mb-2" style="font-size:.7rem;letter-spacing:.08em">Features after Step 7</div>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+              <span class="feat-pill pill-c">wbc_count_per_ul</span>
+              <span class="feat-pill pill-c">rbc_count_millions_per_ul</span>
+              <span class="feat-pill pill-c">hemoglobin_g_dl</span>
+              <span class="feat-pill pill-c">hematocrit_pct</span>
+              <span class="feat-pill pill-c">platelet_count_per_ul</span>
+              <span class="feat-pill pill-drop">mcv_fl ✕</span>
+              <span class="feat-pill pill-c">mchc_g_dl</span>
+              <span class="feat-pill pill-drop">mean_r / g / b ✕</span>
+              <span class="feat-pill pill-c">stain_intensity</span>
+            </div>
+            <img src="NhomC.png" alt="Group C distributions" class="group-img" />
+            <div class="img-caption">EDA: near-Gaussian, symmetric, KDEs for label 0/1 completely overlapping</div>
+          </div>
+          <div class="col-xl-8">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <h6 class="fw-semibold text-body-emphasis">MinMaxScaler</h6>
+                <div class="formula-box" style="font-size:.78rem">
+                  $$x' = \frac{x - x_{\min}}{x_{\max} - x_{\min}} \in [0,1]$$
+                </div>
+                <p class="text-secondary small mt-2 mb-0">Simplest appropriate scaler: maps all values to [0,1] preserving the original distribution shape.</p>
+              </div>
+              <div class="col-md-6">
+                <div class="rationale mt-2">
+                  <strong><i class="bi bi-lightbulb me-1"></i>Why the simplest scaler?</strong><br/>
+                  Group C is already near-Gaussian after IQR trimming — no skewness to fix. Outliers have been removed. A power transform would be overkill and could distort the (already clean) Gaussian shape. These features have near-zero discriminative power and will largely be removed by feature selection (Step 14).
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Engineered -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="badge me-2" style="background:#7c3aed">Engineered</span>
+        <span class="fw-semibold">Engineered Features → StandardScaler</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-xl-4">
+            <div class="d-flex flex-wrap gap-1">
+              <span class="feat-pill pill-eng">nc_ratio</span>
+              <span class="feat-pill pill-eng">form_factor</span>
+              <span class="feat-pill pill-eng">r_ratio</span>
+              <span class="feat-pill pill-eng">g_ratio</span>
+              <span class="feat-pill pill-drop">b_ratio ✕</span>
+              <span class="feat-pill pill-eng">size_anomaly</span>
+              <span class="feat-pill pill-eng">true_cell_area</span>
+              <span class="feat-pill pill-drop">true_perimeter ✕</span>
+            </div>
+            <p class="text-secondary small mt-1 mb-0" style="font-size:.78rem"><code>true_perimeter</code> is dropped in Step 7 (VIF = ∞ with <code>form_factor</code> + <code>true_cell_area</code>)</p>
+          </div>
+          <div class="col-xl-8">
+            <div class="formula-box" style="font-size:.78rem">$$x' = \frac{x - \mu}{\sigma}$$</div>
+            <p class="text-secondary small mt-2 mb-0">Engineered features are derived quantities with no strong prior outlier concern after Steps 1–7. Z-score normalisation centres them without any distribution assumptions.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group D chart -->
+    <div class="card">
+      <div class="card-header"><span class="badge badge-d me-2">Group D</span><span class="fw-semibold">Governance Features — EDA Reference</span></div>
+      <div class="card-body">
+        <img src="NhomD.png" alt="Group D distributions" class="group-img" style="max-width:600px" />
+        <div class="img-caption">EDA: <code>cytodiffusion_anomaly_score</code> shows 100% class separation (data leakage). <code>labeller_confidence_score</code> is left-skewed — annotators more confident on normal cells.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 11 — GMM ═══════════════ -->
+  <section class="section-anchor mb-5" id="step11">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#6366f1">11</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">GMM Clustering — Multi-modality Handling</h2>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-diagram-2 text-warning me-2"></i><span class="fw-semibold">Algorithm: Gaussian Mixture Models, optimal K via BIC in [3, 5]</span></div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6">
+            <div class="formula-box">
+              <strong>GMM density:</strong>
+              $$p(\mathbf{x}) = \sum_{k=1}^{K} \pi_k\,\mathcal{N}(\mathbf{x}\mid\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)$$
+              $$\pi_k \ge 0,\quad \sum_k \pi_k = 1$$
+              <strong>Optimal K via BIC (lower is better):</strong>
+              $$\text{BIC} = k\ln n - 2\ln\hat{\mathcal{L}}$$
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="rationale h-100">
+              <strong>Why GMM over K-Means?</strong>
+              <table class="table table-sm mt-2 mb-0" style="font-size:.8rem">
+                <thead><tr><th></th><th>K-Means</th><th>GMM</th></tr></thead>
+                <tbody>
+                  <tr><td>Assignment</td><td>Hard (1 cluster)</td><td>Soft (probability)</td></tr>
+                  <tr><td>Cluster shape</td><td>Spherical only</td><td>Ellipsoidal</td></tr>
+                  <tr><td>Overlap allowed</td><td>No</td><td><span class="text-success">Yes</span></td></tr>
+                  <tr><td>Multi-modal data</td><td>Limited</td><td><span class="text-success fw-bold">Ideal</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="warn-box">
+          <i class="bi bi-shield-check me-1"></i>
+          <code>anomaly_label</code> is never passed to GMM — clustering is unsupervised on morphological features only, preventing leakage.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 12 — GAUSSIAN NOISE ═══════════════ -->
+  <section class="section-anchor mb-5" id="step12">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#6366f1">12</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Gaussian Noise Augmentation</h2>
+      <span class="badge badge-b ms-1">Group B</span>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-soundwave text-success me-2"></i><span class="fw-semibold">Method: Additive Gaussian noise on morphological features ($\sigma$ = 1% of std)</span></div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-lg-5">
+            <div class="formula-box">
+              $$x'_i = x_i + \varepsilon_i,\quad \varepsilon_i \sim \mathcal{N}(0,\,\sigma^2)$$
+              $$\sigma = 0.01 \times \text{std}(x)$$
+            </div>
+          </div>
+          <div class="col-lg-7">
+            <div class="rationale">
+              Simulates realistic measurement noise from microscope cameras and hematological analyzers without distorting biological signals. At 1% σ, the perturbation is undetectable visually but prevents the model from memorising exact sensor readings (overfitting to device precision).<br/><br/>
+              <strong>Targets updated after Step 7 drops</strong> — <code>cell_area_px</code>, <code>perimeter_px</code>, <code>mean_r/g/b</code>, <code>cell_diameter_um</code>, <code>mcv_fl</code>, <code>true_perimeter</code> no longer exist:
+            </div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-1">
+          <span class="feat-pill pill-drop">cell_diameter_um ✕</span>
+          <span class="feat-pill pill-b">cytoplasm_ratio</span>
+          <span class="feat-pill pill-b">membrane_smoothness</span>
+          <span class="feat-pill pill-b">granularity_score</span>
+          <span class="feat-pill pill-eng">true_cell_area</span>
+          <span class="feat-pill pill-drop">true_perimeter ✕</span>
+          <span class="feat-pill pill-c">stain_intensity</span>
+        </div>
+        <div class="warn-box mt-3">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          <strong>Group A is excluded:</strong> pathological signals in Group A are precious — any noise could corrupt the very features most critical for classification.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 13 — COVARIATE SHIFT ═══════════════ -->
+  <section class="section-anchor mb-5" id="step13">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#6366f1">13</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Covariate Shift Simulation</h2>
+      <span class="badge badge-c ms-1">Group C</span>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-shuffle text-info me-2"></i><span class="fw-semibold">Method: Multiplicative random scaling factor $\sim\mathcal{U}(0.98, 1.02)$</span></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-5">
+            <div class="formula-box">
+              $$x'_i = x_i \times f_i,\quad f_i \sim \mathcal{U}(0.98,\,1.02)$$
+            </div>
+          </div>
+          <div class="col-lg-7">
+            <div class="rationale">
+              In real clinical settings, hematological analyzers at different hospitals are calibrated slightly differently — Hospital A's hemoglobin meter may consistently read ~1% higher than Hospital B's. This 2% multiplicative perturbation simulates that inter-hospital instrument variability, making the model robust to deployment drift.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 14 — FEATURE SELECTION ═══════════════ -->
+  <section class="section-anchor mb-5" id="step14">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#6366f1">14</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">Feature Selection — 4-Stage Sequential Filter</h2>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><span class="badge bg-primary me-2">Stage 1</span><span class="fw-semibold">VIF — Multicollinearity (threshold 10)</span></div>
+          <div class="card-body">
+            <div class="formula-box mb-2">
+              $$\text{VIF}_j = \frac{1}{1 - R^2_j}$$
+            </div>
+            <div class="rationale">VIF = 10 means $R^2 = 0.9$: 90% of the feature's variance is explained by others. Removing such features stabilises Logistic Regression coefficients and reduces numerical issues in matrix inversion.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><span class="badge bg-primary me-2">Stage 2</span><span class="fw-semibold">Pearson Correlation Filter (threshold 0.9)</span></div>
+          <div class="card-body">
+            <div class="formula-box mb-2">
+              $$r_{xy} = \frac{\sum(x_i-\bar{x})(y_i-\bar{y})}{\sqrt{\sum(x_i-\bar{x})^2\sum(y_i-\bar{y})^2}}$$
+            </div>
+            <div class="rationale">Catches pairwise linear redundancy not exposed by VIF (which is multivariate). For any pair with $|r|>0.9$, one is discarded.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><span class="badge bg-primary me-2">Stage 3</span><span class="fw-semibold">Mutual Information — SelectKBest (k = 20)</span></div>
+          <div class="card-body">
+            <div class="formula-box mb-2">
+              $$I(X;Y) = \sum_{x,y} p(x,y)\log\frac{p(x,y)}{p(x)p(y)}$$
+            </div>
+            <div class="rationale">Unlike Pearson $r$, MI captures non-linear dependencies. Group C features (hematological counts) have near-zero MI with the target → eliminated. Group A features score highest.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><span class="badge bg-primary me-2">Stage 4</span><span class="fw-semibold">RFECV — Recursive Elimination + 5-fold CV</span></div>
+          <div class="card-body">
+            <ol class="small text-secondary mb-2">
+              <li>Fit RandomForest on remaining features</li>
+              <li>Rank by $w_j$ (feature importance)</li>
+              <li>Remove feature with lowest $w_j$</li>
+              <li>Repeat; pick best count via 5-fold F1 CV</li>
+            </ol>
+            <div class="rationale">MI ranks features independently (univariate). RFECV detects synergy: a feature weak alone but powerful with another is kept. Expected final count: 10–12.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STEP 15 — SMOTE-TOMEK ═══════════════ -->
+  <section class="section-anchor mb-5" id="step15">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="step-num" style="background:#6366f1">15</span>
+      <h2 class="h5 fw-bold text-body-emphasis mb-0">SMOTE-Tomek — Class Imbalance</h2>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-bar-chart text-warning me-2"></i><span class="fw-semibold">Synthetic oversampling + boundary undersampling</span></div>
+      <div class="card-body">
+        <div class="why-box mb-3"><strong>Problem:</strong> skewness = 0.77 → majority-class bias without intervention.</div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <h6 class="fw-semibold text-body-emphasis">SMOTE</h6>
+            <div class="formula-box" style="font-size:.8rem">
+              $$\mathbf{x}_\text{new} = \mathbf{x}_i + \lambda(\mathbf{x}_j - \mathbf{x}_i),\quad \lambda\sim\mathcal{U}(0,1)$$
+            </div>
+            <p class="text-secondary small mt-2 mb-0">Interpolates between minority sample $\mathbf{x}_i$ and a random KNN neighbour $\mathbf{x}_j$. Creates new synthetic samples rather than duplicating existing ones.</p>
+          </div>
+          <div class="col-md-6">
+            <h6 class="fw-semibold text-body-emphasis">Tomek Links</h6>
+            <div class="formula-box" style="font-size:.8rem">
+              $$(\mathbf{x}_i,\mathbf{x}_j)\text{ is a Tomek Link if each is the other's nearest neighbour and }\text{class}(i)\ne\text{class}(j)$$
+              <p class="mb-0 mt-1 text-secondary small">Remove the majority-class member of each link.</p>
+            </div>
+            <p class="text-secondary small mt-2 mb-0">Cleans boundary ambiguity — removes the majority samples closest to the minority boundary, creating a clean margin.</p>
+          </div>
+        </div>
+        <div class="warn-box">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          SMOTE-Tomek is applied <strong>only during training</strong> (fitted only on <code>X_train</code> inside the pipeline). The test set is never modified — evaluating on real unaugmented samples ensures honest performance metrics.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ MODEL HYPERPARAMETERS ═══════════════ -->
+  <section class="section-anchor mb-5" id="hyperparams">
+    <h2 class="h5 fw-bold text-body-emphasis mb-3"><i class="bi bi-sliders me-2 text-primary"></i>Model Hyperparameter Choices</h2>
+    <p class="text-secondary small mb-3">All hyperparameters are fixed (no grid search) and are read from <code>config.yml → model_training.models[*].params</code>. Below is the justification for each non-default value.</p>
+
+    <div class="row g-3">
+
+      <!-- Decision Tree -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-diagram-2 me-2"></i><span class="fw-semibold">Decision Tree</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0 param-row">
+              <thead><tr><th class="ps-3">Parameter</th><th>Value</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr class="param-row"><td class="ps-3">max_depth</td><td>10</td><td>Prevents over-deep trees from memorising noise; 10 levels captures complex interactions without overfitting the small dataset.</td></tr>
+                <tr class="param-row"><td class="ps-3">min_samples_split</td><td>5</td><td>A node needs ≥5 samples to be split — prevents splits on individual outlier points.</td></tr>
+                <tr class="param-row"><td class="ps-3">min_samples_leaf</td><td>2</td><td>Each leaf must contain ≥2 samples, eliminating singleton leaves that memorise noise.</td></tr>
+                <tr class="param-row"><td class="ps-3">class_weight</td><td>balanced</td><td>Weights each class inversely proportional to its frequency → compensates for class skewness 0.77.</td></tr>
+                <tr class="param-row"><td class="ps-3">max_features</td><td>sqrt</td><td>Uses $\sqrt{n_\text{features}}$ features per split — standard variance reduction technique.</td></tr>
+                <tr class="param-row"><td class="ps-3">ccp_alpha</td><td>0.0</td><td>No post-pruning; VIF + RFECV already removed redundant features, so additional pruning is not needed.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Naive Bayes -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-braces me-2"></i><span class="fw-semibold">Gaussian Naive Bayes</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0 param-row">
+              <thead><tr><th class="ps-3">Parameter</th><th>Value</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr class="param-row"><td class="ps-3">var_smoothing</td><td>1e-9</td><td>Adds a small value to estimated per-feature variance to avoid division by zero when a feature has very low variance post-scaling. Default sklearn value, appropriate here since Yeo-Johnson has already stabilised variances.</td></tr>
+              </tbody>
+            </table>
+            <div class="card-body border-top" style="border-color:var(--card-border)!important">
+              <div class="rationale" style="font-size:.83rem">
+                GaussianNB assumes features follow $\mathcal{N}(\mu_k, \sigma_k^2)$ per class $k$. This assumption is satisfied for Group A features after Yeo-Johnson transform. Class-conditional likelihood:
+                $$p(x_j \mid y=k) = \frac{1}{\sqrt{2\pi\sigma_{jk}^2}}\exp\!\left(-\frac{(x_j-\mu_{jk})^2}{2\sigma_{jk}^2}\right)$$
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KNN -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-people me-2"></i><span class="fw-semibold">K-Nearest Neighbours</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0 param-row">
+              <thead><tr><th class="ps-3">Parameter</th><th>Value</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr class="param-row"><td class="ps-3">n_neighbors</td><td>5</td><td>Classic starting point. $k=1$ is too noisy; very large $k$ over-smooths the boundary. 5 balances variance and bias for ~4700 training samples.</td></tr>
+                <tr class="param-row"><td class="ps-3">weights</td><td>distance</td><td>Closer neighbours contribute more. Important for imbalanced data — a minority sample near the boundary gets fairer treatment than uniform weighting.</td></tr>
+                <tr class="param-row"><td class="ps-3">metric / p</td><td>minkowski / 2</td><td>Euclidean distance — appropriate for scaled numerical features where all axes have comparable units post-scaling.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logistic Regression -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-graph-up me-2"></i><span class="fw-semibold">Logistic Regression</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0 param-row">
+              <thead><tr><th class="ps-3">Parameter</th><th>Value</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr class="param-row"><td class="ps-3">C</td><td>1.0</td><td>Inverse regularisation strength. C=1 is the neutral (default) regularisation — neither too sparse nor too flexible. Strong regularisation would be premature without tuning.</td></tr>
+                <tr class="param-row"><td class="ps-3">solver</td><td>saga</td><td>Config says <code>lbfgs</code> but the code overrides to <code>saga</code> — the only solver supporting both L1 and L2 penalties simultaneously, enabling full GridSearch over penalty type.</td></tr>
+                <tr class="param-row"><td class="ps-3">max_iter</td><td>5000</td><td>Increased from default 100 — needed after extensive preprocessing (more orthogonal features take longer to converge).</td></tr>
+                <tr class="param-row"><td class="ps-3">class_weight</td><td>balanced</td><td>Adjusts loss weights for class imbalance, same rationale as Decision Tree.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Random Forest -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-tree me-2"></i><span class="fw-semibold">Random Forest</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0 param-row">
+              <thead><tr><th class="ps-3">Parameter</th><th>Value</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr class="param-row"><td class="ps-3">n_estimators</td><td>100</td><td>100 trees gives excellent bias-variance tradeoff at moderate compute cost. Forest variance is $\propto 1/n_\text{trees}$ so gains diminish rapidly beyond 100.</td></tr>
+                <tr class="param-row"><td class="ps-3">max_depth</td><td>10</td><td>Same as DT — prevents any individual tree from overfitting (though the ensemble averages this out, limiting depth speeds up training).</td></tr>
+                <tr class="param-row"><td class="ps-3">max_features</td><td>sqrt</td><td>Decorrelates trees: each split considers only $\sqrt{n}$ random features, so trees make different mistakes and averaging reduces variance.</td></tr>
+                <tr class="param-row"><td class="ps-3">class_weight</td><td>balanced</td><td>Each tree is weighted per class frequency — handles imbalance at the tree level, not just the dataset level.</td></tr>
+                <tr class="param-row"><td class="ps-3">bootstrap</td><td>true</td><td>Bagging: each tree is trained on a bootstrap sample (≈63% unique samples) — the held-out OOB samples provide a free validation signal.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- XGBoost -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-lightning-charge me-2 text-warning"></i><span class="fw-semibold">XGBoost</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0 param-row">
+              <thead><tr><th class="ps-3">Parameter</th><th>Value</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr class="param-row"><td class="ps-3">n_estimators</td><td>100</td><td>100 boosting rounds. Unlike RF, boosting is sequential so more trees = more risk of overfitting; 100 is the standard starting point.</td></tr>
+                <tr class="param-row"><td class="ps-3">max_depth</td><td>6</td><td>Shallower than RF (6 vs. 10) — in boosting each tree corrects residuals of the previous, so shallow "weak learners" are preferable to deep ones.</td></tr>
+                <tr class="param-row"><td class="ps-3">learning_rate</td><td>0.1</td><td>Conservative shrinkage: each tree contributes only 10% of its prediction. Lower rate = more robust to overfitting, at the cost of needing more trees.</td></tr>
+                <tr class="param-row"><td class="ps-3">subsample</td><td>0.8</td><td>Uses 80% of training data per tree (stochastic gradient boosting). Introduces variance reduction similar to bagging.</td></tr>
+                <tr class="param-row"><td class="ps-3">colsample_bytree</td><td>0.8</td><td>Uses 80% of features per tree — mirrors RF's <code>max_features</code> for tree decorrelation.</td></tr>
+                <tr class="param-row"><td class="ps-3">scale_pos_weight</td><td>3</td><td>$\approx n_\text{negative}/n_\text{positive}$. For skewness=0.77, the majority class is ~3× the minority → this parameter tells XGBoost to penalise minority-class errors 3× more.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ SUMMARY TABLE ═══════════════ -->
+  <section class="section-anchor mb-5" id="summary-table">
+    <h2 class="h5 fw-bold text-body-emphasis mb-3"><i class="bi bi-table me-2 text-primary"></i>Method Summary</h2>
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.82rem">
+          <thead><tr><th class="ps-3">Step</th><th>Method</th><th>Applied To</th><th>Why Chosen</th></tr></thead>
+          <tbody>
+            <tr><td class="ps-3">1</td><td>Row filter ≥ 0.5</td><td>labeller_confidence_score</td><td>Remove uncertain labels before training</td></tr>
+            <tr><td class="ps-3">2</td><td>IQR Trimming ×1.5</td><td>Group C (11 features)</td><td>Symmetric noise-driven outliers — safe to delete</td></tr>
+            <tr><td class="ps-3">3</td><td>Column drop</td><td>7 columns</td><td>Data leakage, no predictive value, statistical non-significance</td></tr>
+            <tr><td class="ps-3">4</td><td>Physical unit conversion</td><td>cell_area_px, perimeter_px</td><td>Eliminate magnification bias (px → µm)</td></tr>
+            <tr><td class="ps-3">5</td><td>Group-wise mean shift</td><td>mean_r/g/b, stain_intensity</td><td>Must precede chromaticity so ratios reflect true hue</td></tr>
+            <tr><td class="ps-3">6</td><td>Feature engineering (5 features)</td><td>NC ratio, Form factor, r/g ratio, Size anomaly, physical units</td><td>Encode hematological domain knowledge</td></tr>
+            <tr><td class="ps-3"><strong>7</strong></td><td><strong>Drop source features</strong></td><td>nucleus_area_pct, cell_area_px, perimeter_px, mean_r/g/b, b_ratio</td><td><strong>Prevent perfect multicollinearity (VIF=∞)</strong></td></tr>
+            <tr><td class="ps-3">8</td><td>OHE + Ordinal Encoding</td><td>3 categorical features</td><td>Statistical significance (p&lt;0.05) and control variables</td></tr>
+            <tr><td class="ps-3">10a</td><td>Winsorization + Yeo-Johnson + RobustScaler</td><td>Group A (4 features)</td><td>Skewed + critical outliers — preserve pathology signal</td></tr>
+            <tr><td class="ps-3">10b</td><td>Winsorization + QuantileTransformer + StandardScaler</td><td>Group B (4 features)</td><td>Multi-modal — flatten peaks for consistent boundary</td></tr>
+            <tr><td class="ps-3">10c</td><td>MinMaxScaler</td><td>Group C (8 features)</td><td>Already Gaussian after IQR trim — minimal transform needed</td></tr>
+            <tr><td class="ps-3">10d</td><td>StandardScaler</td><td>Engineered (7 features)</td><td>Derived features, no strong outlier concern post-engineering</td></tr>
+            <tr><td class="ps-3">11</td><td>GMM (BIC, K∈[3,5])</td><td>6 morphological features</td><td>Soft clustering for overlapping cell sub-populations</td></tr>
+            <tr><td class="ps-3">12</td><td>Gaussian noise (σ=1%)</td><td>Group B + physical engineered</td><td>Simulate measurement error, prevent overfitting to sensor precision</td></tr>
+            <tr><td class="ps-3">13</td><td>Multiplicative shift ×U(0.98,1.02)</td><td>Group C hematology (7 features)</td><td>Simulate inter-hospital analyzer calibration drift</td></tr>
+            <tr><td class="ps-3">14a</td><td>VIF (threshold 10)</td><td>All remaining features</td><td>Remove multicollinear features</td></tr>
+            <tr><td class="ps-3">14b</td><td>Pearson correlation (threshold 0.9)</td><td>Post-VIF features</td><td>Remove pairwise linear redundancy</td></tr>
+            <tr><td class="ps-3">14c</td><td>SelectKBest (MI, k=20)</td><td>Post-correlation features</td><td>Rank by non-linear dependency with target</td></tr>
+            <tr><td class="ps-3">14d</td><td>RFECV (RandomForest, 5-fold F1)</td><td>Top-20 MI features</td><td>Multivariate interaction-aware optimal subset</td></tr>
+            <tr><td class="ps-3">15</td><td>SMOTE-Tomek</td><td>Training set minority class</td><td>Oversample + clean boundary — handle skew=0.77</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-secondary py-4 border-top" style="border-color:var(--card-border)!important;font-size:.76rem">
+    Blood Cell Classification Pipeline · Preprocessing Documentation · Source of truth: <code>config.yml</code>
+  </footer>
+</main>
+
+<!-- Lightbox overlay -->
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
+  <button id="lightbox-close" aria-label="Close">&times;</button>
+  <img id="lightbox-img" src="" alt="" draggable="false" />
+  <div id="lightbox-controls">
+    <button id="lb-zoom-out" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
+    <button id="lb-reset"    title="Reset zoom"><i class="bi bi-arrows-fullscreen"></i></button>
+    <button id="lb-zoom-in"  title="Zoom in"><i class="bi bi-zoom-in"></i></button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  /* ── Theme ── */
+  const root  = document.documentElement;
+  const btn   = document.getElementById('theme-toggle');
+  const icon  = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  const mq    = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function applyTheme(t) {
+    root.setAttribute('data-bs-theme', t);
+    icon.className  = t === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    label.textContent = t === 'dark' ? 'Light' : 'Dark';
+  }
+  applyTheme(localStorage.getItem('theme') || (mq.matches ? 'dark' : 'light'));
+  btn.addEventListener('click', () => {
+    const next = root.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+  });
+  mq.addEventListener('change', e => { if (!localStorage.getItem('theme')) applyTheme(e.matches ? 'dark' : 'light'); });
+
+  /* ── Active sidebar link on scroll ── */
+  const sections = document.querySelectorAll('.section-anchor');
+  const navLinks  = document.querySelectorAll('#sidebar .nav-link');
+  const observer  = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const link = document.querySelector(`#sidebar a[href="#${e.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { threshold: 0.2, rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+
+  /* ── Lightbox ── */
+  const lb      = document.getElementById('lightbox');
+  const lbImg   = document.getElementById('lightbox-img');
+  const lbClose = document.getElementById('lightbox-close');
+  const lbZoomIn  = document.getElementById('lb-zoom-in');
+  const lbZoomOut = document.getElementById('lb-zoom-out');
+  const lbReset   = document.getElementById('lb-reset');
+
+  let scale = 1;
+  let drag = { active: false, startX: 0, startY: 0, tx: 0, ty: 0, baseX: 0, baseY: 0 };
+
+  function setTransform() {
+    lbImg.style.transform = `translate(${drag.tx}px, ${drag.ty}px) scale(${scale})`;
+  }
+
+  function openLightbox(src, alt) {
+    lbImg.src = src;
+    lbImg.alt = alt;
+    scale = 1; drag.tx = 0; drag.ty = 0;
+    setTransform();
+    lb.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    lb.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.group-img').forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.src, img.alt));
+  });
+
+  lbClose.addEventListener('click', closeLightbox);
+  lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+  lbZoomIn.addEventListener('click',  () => { scale = Math.min(scale + 0.25, 5); setTransform(); });
+  lbZoomOut.addEventListener('click', () => { scale = Math.max(scale - 0.25, 0.25); setTransform(); });
+  lbReset.addEventListener('click',   () => { scale = 1; drag.tx = 0; drag.ty = 0; setTransform(); });
+
+  /* wheel zoom */
+  lbImg.addEventListener('wheel', e => {
+    e.preventDefault();
+    scale = Math.min(Math.max(scale - e.deltaY * 0.001, 0.25), 5);
+    setTransform();
+  }, { passive: false });
+
+  /* drag to pan */
+  lbImg.addEventListener('mousedown', e => {
+    drag.active = true;
+    drag.startX = e.clientX; drag.startY = e.clientY;
+    drag.baseX = drag.tx;    drag.baseY = drag.ty;
+    lbImg.classList.add('dragging');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!drag.active) return;
+    drag.tx = drag.baseX + (e.clientX - drag.startX);
+    drag.ty = drag.baseY + (e.clientY - drag.startY);
+    setTransform();
+  });
+  window.addEventListener('mouseup', () => {
+    drag.active = false;
+    lbImg.classList.remove('dragging');
+  });
+
+  /* touch pinch-zoom + pan */
+  let touches = {};
+  let pinchDist0 = null, scale0 = 1;
+  lbImg.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      pinchDist0 = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY);
+      scale0 = scale;
+    } else if (e.touches.length === 1) {
+      drag.active = true;
+      drag.startX = e.touches[0].clientX; drag.startY = e.touches[0].clientY;
+      drag.baseX = drag.tx;               drag.baseY = drag.ty;
+    }
+    e.preventDefault();
+  }, { passive: false });
+  lbImg.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && pinchDist0 !== null) {
+      const d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY);
+      scale = Math.min(Math.max(scale0 * (d / pinchDist0), 0.25), 5);
+      setTransform();
+    } else if (e.touches.length === 1 && drag.active) {
+      drag.tx = drag.baseX + (e.touches[0].clientX - drag.startX);
+      drag.ty = drag.baseY + (e.touches[0].clientY - drag.startY);
+      setTransform();
+    }
+    e.preventDefault();
+  }, { passive: false });
+  lbImg.addEventListener('touchend', () => { drag.active = false; pinchDist0 = null; });
+</script>
+</body>
+</html>
