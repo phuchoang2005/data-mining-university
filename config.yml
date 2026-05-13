@@ -258,14 +258,15 @@ feature_engineering:
   # bias-free hue rather than staining-protocol artifacts.
   chromaticity:
     prerequisite: "protocol_shifting must run first (Step 5 before Step 6)"
-    - feature: "r_ratio"
-      formula: "mean_r_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
-    - feature: "g_ratio"
-      formula: "mean_g_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
-    # b_ratio NOT kept: r_ratio + g_ratio + b_ratio ≡ 1 → perfect linear dependency → VIF=∞
-    - description: "Protocol-normalised color ratios, lighting-invariant"
-    - source_features: ["mean_r", "mean_g", "mean_b"]  # dropped after engineering
-    - target_group: "engineered"
+    description: "Protocol-normalised color ratios, lighting-invariant"
+    source_features: ["mean_r", "mean_g", "mean_b"]
+    target_group: "engineered"
+    features:
+      - feature: "r_ratio"
+        formula: "mean_r_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
+      - feature: "g_ratio"
+        formula: "mean_g_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
+      # b_ratio NOT kept: r_ratio + g_ratio + b_ratio ≡ 1 → perfect linear dependency → VIF=∞
     
   # 5. Global-Local Interaction
   size_anomaly:
