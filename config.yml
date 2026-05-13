@@ -296,7 +296,7 @@ clustering:
     - "granularity_score"
   
   optimal_clusters:
-    method: "elbow_method"  # Or silhouette_score
+    method: "BIC"  # Bayesian Information Criterion — minimise BIC over n_components in range
     expected_range: [3, 5]  # Typical for blood cell types
   
   output:
