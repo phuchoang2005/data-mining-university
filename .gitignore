@@ -275,6 +275,7 @@ credentials.json
 # ==========================================
 # 7. OS SPECIFIC FILES
 # ==========================================
+
 .DS_Store
 Thumbs.db
 .agents
