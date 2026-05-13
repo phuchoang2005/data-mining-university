@@ -214,7 +214,7 @@ data/raw/
 data/bronze/
 data/silver/
 data/gold/
-*.csv
+cell_data.csv
 *.xlsx
 *.parquet
 *.npy
@@ -277,3 +277,6 @@ credentials.json
 # ==========================================
 .DS_Store
 Thumbs.db
+.agents
+
+docs-old

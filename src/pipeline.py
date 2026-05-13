@@ -21,185 +21,216 @@ from .utils import ColumnDropper
 
 def build_preprocessing_pipeline(config=None):
     """
-    Builds the end-to-end preprocessing pipeline.
-    Matches config.yml pipeline_order (steps 1-14):
+    Builds the end-to-end preprocessing pipeline (15 steps).
 
-      Member 1 - Numeric Processing:
-        1. Row filtering (confidence >= 0.5, then drop column later)
-        2. IQR trimming for Group C outliers
-        3. Drop leakage/ID columns
-        4. Physical unit normalization
+    Step order and rationale
+    ────────────────────────
+    Member 1 — Numeric Processing (Steps 1-4)
+      1.  Row filtering      : keep labeller_confidence_score ≥ 0.5, then drop column later
+      2.  IQR trimming       : remove measurement-error outliers in Group C
+      3.  Drop leakage/ID    : disease_category, cytodiffusion_*, cell_id, …
+      4.  Physical units     : cell_area_px → true_cell_area, perimeter_px → true_perimeter
 
-      Member 2 - Categorical & Feature Engineering:
-        5. Feature engineering (needs raw unscaled values)
-        6. Protocol shifting (normalize colors across staining protocols)
-        7. Categorical encoding
-        8. Drop utility columns (no longer needed)
-        9. Numeric scaling (ColumnTransformer per group)
-       10. GMM clustering
-       11. Gaussian noise augmentation (Group B & C features)
-       12. Covariate shift augmentation (Group C hematology features)
+    Member 2 — Categorical & Feature Engineering (Steps 5-9)
+      5.  Protocol shifting  : normalise mean_r/g/b BEFORE computing chromaticity ratios
+                               so ratios are derived from bias-free color values
+      6.  Feature engineering: NC ratio, form factor, chromaticity (from shifted colors),
+                               size anomaly
+      7.  Drop source columns: remove features now encoded by engineered ones to prevent
+                               multicollinearity (nucleus_area_pct → nc_ratio, etc.)
+      8.  Categorical encoding
+      9.  Drop utility columns (magnification_x, image_resolution_px, labeller_confidence)
+     10.  Numeric scaling — ColumnTransformer per group
+     11.  GMM clustering
+     12.  Gaussian noise augmentation
+     13.  Covariate shift augmentation
 
-      Member 3 - Feature Selection & Validation:
-       13. Feature selection (Correlation + Mutual Information)
-       14. SMOTE-Tomek (class imbalance handling)
+    Member 3 — Feature Selection & Validation (Steps 14-15)
+     14.  Feature selection (VIF → Correlation → Mutual Information → RFECV)
+     15.  SMOTE-Tomek (class imbalance handling)
     """
-    # Feature group definitions from config
+
+    # ── Feature group definitions (post-engineering drops already excluded) ──────
+    # Group A: Pathology Signals — critical, keep outliers via capping
     group_a_features = [
         "eccentricity", "lobularity_score", "chromatin_density",
-        "nucleus_area_pct", "circularity"
+        # nucleus_area_pct REMOVED → replaced by nc_ratio (monotonic bijection)
+        "circularity",
     ]
+
+    # Group B: Morphology — multi-modal distributions, no raw pixel cols
     group_b_features = [
-        "cell_diameter_um", "cell_area_px", "perimeter_px",
-        "cytoplasm_ratio", "membrane_smoothness", "granularity_score"
+        "cell_diameter_um",
+        # cell_area_px  REMOVED → replaced by true_cell_area (physical units)
+        # perimeter_px  REMOVED → replaced by true_perimeter (physical units)
+        "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
     ]
+
+    # Group C: Hematology / Technical noise — symmetric, low separability
     group_c_features = [
         "wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl",
         "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl",
-        "mean_r", "mean_g", "mean_b", "stain_intensity"
-    ]
-    engineered_features = [
-        "nc_ratio", "form_factor", "r_ratio", "g_ratio", "b_ratio",
-        "size_anomaly", "true_cell_area", "true_perimeter"
+        # mean_r / mean_g / mean_b REMOVED → replaced by r_ratio, g_ratio (chromaticity)
+        "stain_intensity",
     ]
 
-    # --- Numeric group sub-pipelines (used inside ColumnTransformer) ---
-    # Group A: Capping [1,99] → Yeo-Johnson → RobustScaler (config: numeric_groups.group_a)
+    # Engineered features: NC ratio, shape, color ratios, size, physical units
+    engineered_features = [
+        "nc_ratio", "form_factor",
+        "r_ratio", "g_ratio",
+        # b_ratio REMOVED → r_ratio + g_ratio + b_ratio ≡ 1 (perfect linear dependency)
+        "size_anomaly",
+        "true_cell_area", "true_perimeter",
+    ]
+
+    # ── Numeric sub-pipelines for ColumnTransformer (Step 10) ────────────────────
+    # Group A: Capping [1,99] → Yeo-Johnson → RobustScaler
+    #   Rationale: heavy skew + critical outliers; RobustScaler protects against them
     group_a_pipe = Pipeline([
         ('capper', OutlierCapper(percentiles=(1, 99))),
         ('yeo_johnson', PowerTransformer(method='yeo-johnson')),
-        ('scaler', RobustScaler())
+        ('scaler', RobustScaler()),
     ])
-    # Group B: Capping [1,99] → QuantileTransformer(uniform) → StandardScaler (config: numeric_groups.group_b)
+
+    # Group B: Capping [1,99] → QuantileTransformer(uniform) → StandardScaler
+    #   Rationale: multi-modal distributions; quantile transform flattens peaks
     group_b_pipe = Pipeline([
         ('capper', OutlierCapper(percentiles=(1, 99))),
         ('quantile', QuantileTransformer(output_distribution='uniform', random_state=42)),
-        ('scaler', StandardScaler())
-    ])
-    # Group C: MinMaxScaler only (config: numeric_groups.group_c)
-    group_c_pipe = Pipeline([
-        ('scaler', MinMaxScaler())
-    ])
-    # Engineered features: StandardScaler
-    engineered_pipe = Pipeline([
-        ('scaler', StandardScaler())
+        ('scaler', StandardScaler()),
     ])
 
-    # ColumnTransformer: scale each group differently, passthrough the rest
+    # Group C: MinMaxScaler only
+    #   Rationale: already Gaussian after IQR trimming; simplest appropriate scaler
+    group_c_pipe = Pipeline([
+        ('scaler', MinMaxScaler()),
+    ])
+
+    # Engineered features: StandardScaler
+    engineered_pipe = Pipeline([
+        ('scaler', StandardScaler()),
+    ])
+
     numeric_ct = ColumnTransformer(
         transformers=[
-            ('group_a', group_a_pipe, group_a_features),
-            ('group_b', group_b_pipe, group_b_features),
-            ('group_c', group_c_pipe, group_c_features),
+            ('group_a',    group_a_pipe,    group_a_features),
+            ('group_b',    group_b_pipe,    group_b_features),
+            ('group_c',    group_c_pipe,    group_c_features),
             ('engineered', engineered_pipe, engineered_features),
         ],
         remainder='passthrough',
-        verbose_feature_names_out=False
+        verbose_feature_names_out=False,
     )
     numeric_ct.set_output(transform="pandas")
 
-    # --- Assemble full pipeline ---
+    # ── Full pipeline ─────────────────────────────────────────────────────────────
     full_pipeline = ImbPipeline([
-        # Step 1: Filter low-confidence rows (Group D)
-        # Config: group_d.labeller_confidence_score.threshold = 0.5
+
+        # Step 1: Filter low-confidence rows
         ('conf_filter', FunctionSampler(
             func=confidence_filter_sampler,
             kw_args={"threshold": 0.5},
-            validate=False
+            validate=False,
         )),
 
-        # Step 2: IQR trimming for Group C outliers
-        # Config: numeric_groups.group_c.outlier_strategy = trimming, iqr_multiplier = 1.5
+        # Step 2: IQR trimming for Group C outliers (measurement errors)
         ('iqr_trimmer', FunctionSampler(
             func=iqr_trimming_sampler,
-            kw_args={"features": group_c_features, "iqr_multiplier": 1.5},
-            validate=False
+            kw_args={"features": group_c_features + ["mean_r", "mean_g", "mean_b"],
+                     "iqr_multiplier": 1.5},
+            validate=False,
         )),
 
         # Step 3: Drop leakage & ID columns
-        # Config: categorical_features (cell_id, disease_category, dataset_source, microscope_model)
-        # Config: group_d (cytodiffusion_anomaly_score, cytodiffusion_classification_confidence)
         ('drop_leakage', ColumnDropper(columns=[
-            "cell_id",                           # ID column
-            "cell_type",                         # dropped feature
-            "disease_category",                  # data leakage
-            "dataset_source",                    # no significance (p=0.520)
-            "microscope_model",                  # no significance (p=0.408)
-            "cytodiffusion_anomaly_score",       # data leakage per config
-            "cytodiffusion_classification_confidence",  # data leakage - same cytodiffusion system
+            "cell_id",
+            "cell_type",
+            "disease_category",
+            "dataset_source",
+            "microscope_model",
+            "cytodiffusion_anomaly_score",
+            "cytodiffusion_classification_confidence",
         ])),
 
         # Step 4: Physical unit normalization (needs magnification_x)
-        # Config: feature_engineering.physical_units
         ('phys_norm', PhysicalUnitNormalizer()),
 
-        # Step 5: Feature engineering (needs raw unscaled values)
-        # Config: feature_engineering (nc_ratio, form_factor, chromaticity, size_anomaly)
-        ('feature_eng', FeatureEngineer()),
-
-        # Step 6: Protocol shifting (normalize colors across staining protocols)
-        # Config: data_augmentation.protocol_shifting
-        # Must run BEFORE categorical encoding (needs raw staining_protocol column)
+        # Step 5: Protocol shifting — MUST run before chromaticity ratios
+        #   Normalises mean_r/g/b across staining protocols so that chromaticity
+        #   ratios computed next reflect true hue, not staining-protocol bias.
         ('protocol_shift', ProtocolShifter(
             target_features=["mean_r", "mean_g", "mean_b", "stain_intensity"],
-            protocol_col="staining_protocol"
+            protocol_col="staining_protocol",
         )),
 
-        # Step 7: Categorical encoding
-        # Config: categorical_features (OHE: staining_protocol, patient_sex;
-        #         Ordinal: patient_age_group; Drop handled in step 3)
-        ('categorical_proc', CategoricalProcessor(config=config)),
+        # Step 6: Feature engineering (chromaticity uses already-shifted colors)
+        ('feature_eng', FeatureEngineer()),
 
-        # Step 8: Drop utility columns no longer needed
-        ('drop_utility', ColumnDropper(columns=[
-            "magnification_x",                   # used by PhysicalUnitNormalizer
-            "image_resolution_px",               # not in any feature group
-            "labeller_confidence_score",          # used for row filtering only
+        # Step 7: Drop source features that are now encoded by engineered ones
+        #   Avoids multicollinearity before scaling & selection:
+        #   nucleus_area_pct  → nc_ratio     (monotonic bijection, VIF = ∞)
+        #   cell_area_px      → true_cell_area + form_factor
+        #   perimeter_px      → true_perimeter + form_factor
+        #   mean_r/g/b        → r_ratio, g_ratio (chromaticity, post-shift)
+        #   b_ratio           → 1 - r_ratio - g_ratio (perfect linear dependency)
+        ('drop_engineered_sources', ColumnDropper(columns=[
+            "nucleus_area_pct",
+            "cell_area_px",
+            "perimeter_px",
+            "mean_r", "mean_g", "mean_b",
+            "b_ratio",
         ])),
 
-        # Step 9: Numeric scaling per group
+        # Step 8: Categorical encoding
+        ('categorical_proc', CategoricalProcessor(config=config)),
+
+        # Step 9: Drop utility columns no longer needed
+        ('drop_utility', ColumnDropper(columns=[
+            "magnification_x",
+            "image_resolution_px",
+            "labeller_confidence_score",
+        ])),
+
+        # Step 10: Numeric scaling per group (ColumnTransformer)
         ('numeric_ct', numeric_ct),
 
-        # Step 10: GMM clustering
-        # Config: clustering (GMM, optimal in [3,5] via BIC)
+        # Step 11: GMM clustering — adds cell_subpopulation feature
         ('gmm_cluster', GMMClusterer(n_components_range=(3, 5))),
 
-        # Step 11: Gaussian noise augmentation
-        # Config: data_augmentation.gaussian_noise (Group B & C features, sigma 1%)
+        # Step 12: Gaussian noise on Group B + physical engineered features
+        #   cell_area_px / perimeter_px / mean_r/g/b already dropped; targets updated
         ('gaussian_noise', FunctionSampler(
             func=gaussian_noise_sampler,
             kw_args={
                 "target_features": [
-                    "cell_diameter_um", "cell_area_px", "perimeter_px",
+                    "cell_diameter_um",
                     "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
-                    "mean_r", "mean_g", "mean_b"
+                    "true_cell_area", "true_perimeter",
+                    "stain_intensity",
                 ],
-                "sigma_percentage": 0.01
+                "sigma_percentage": 0.01,
             },
-            validate=False
+            validate=False,
         )),
 
-        # Step 12: Covariate shift augmentation
-        # Config: data_augmentation.covariate_shift (Group C hematology, factor [0.98, 1.02])
+        # Step 13: Covariate shift on Group C hematology features
         ('covariate_shift', FunctionSampler(
             func=covariate_shift_sampler,
             kw_args={
                 "target_features": [
                     "wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl",
-                    "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl"
+                    "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl",
                 ],
-                "factor_range": (0.98, 1.02)
+                "factor_range": (0.98, 1.02),
             },
-            validate=False
+            validate=False,
         )),
 
-        # Step 13: Feature selection (VIF + Correlation + Mutual Information + RFE)
-        # Config: feature_selection (parameters imported from config.yml)
+        # Step 14: Feature selection (VIF → Correlation → MI → RFECV)
         ('feature_select', FeatureSelector(config=config)),
 
-        # Step 14: Imbalance handling
-        # Config: imbalance_handling / data_augmentation.smote (SMOTE-Tomek Links)
-        ('smote_tomek', get_smote_tomek())
+        # Step 15: Imbalance handling
+        ('smote_tomek', get_smote_tomek()),
     ])
 
     return full_pipeline

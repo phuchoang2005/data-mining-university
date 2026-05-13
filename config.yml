@@ -89,7 +89,9 @@ numeric_groups:
       - "eccentricity"
       - "lobularity_score"
       - "chromatin_density"
-      - "nucleus_area_pct"
+      # nucleus_area_pct REMOVED after feature engineering: replaced by nc_ratio
+      # (nc_ratio = nucleus_area_pct / (100 - nucleus_area_pct) is a monotonic bijection
+      #  → perfect multicollinearity VIF=∞ if both are kept)
       - "circularity"
     
     processing:
@@ -110,8 +112,8 @@ numeric_groups:
     description: "Average separability, multi-modal distribution"
     features:
       - "cell_diameter_um"
-      - "cell_area_px"
-      - "perimeter_px"
+      # cell_area_px REMOVED after feature engineering: replaced by true_cell_area
+      # perimeter_px  REMOVED after feature engineering: replaced by true_perimeter
       - "cytoplasm_ratio"
       - "membrane_smoothness"
       - "granularity_score"
@@ -138,9 +140,9 @@ numeric_groups:
       - "platelet_count_per_ul"
       - "mcv_fl"
       - "mchc_g_dl"
-      - "mean_r"
-      - "mean_g"
-      - "mean_b"
+      # mean_r / mean_g / mean_b REMOVED after feature engineering:
+      # replaced by r_ratio, g_ratio (chromaticity ratios computed from
+      # protocol-shifted values). stain_intensity retained for absolute brightness.
       - "stain_intensity"
     
     processing:
@@ -251,17 +253,19 @@ feature_engineering:
     interpretation: "1.0 = perfect circle, lower = more complex shape"
     target_group: "group_a + group_b"
     
-  # 4. Chromaticity Features (using Group C color features)
+  # 4. Chromaticity Features
+  # NOTE: computed AFTER protocol shifting (Step 5) so that ratios reflect
+  # bias-free hue rather than staining-protocol artifacts.
   chromaticity:
+    prerequisite: "protocol_shifting must run first (Step 5 before Step 6)"
     - feature: "r_ratio"
-      formula: "mean_r / (mean_r + mean_g + mean_b)"
+      formula: "mean_r_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
     - feature: "g_ratio"
-      formula: "mean_g / (mean_r + mean_g + mean_b)"
-    - feature: "b_ratio"
-      formula: "mean_b / (mean_r + mean_g + mean_b)"
-    - description: "Color ratios independent of lighting conditions"
-    - source_features: ["mean_r", "mean_g", "mean_b"]
-    - target_group: "group_c"
+      formula: "mean_g_shifted / (mean_r_shifted + mean_g_shifted + mean_b_shifted)"
+    # b_ratio NOT kept: r_ratio + g_ratio + b_ratio ≡ 1 → perfect linear dependency → VIF=∞
+    - description: "Protocol-normalised color ratios, lighting-invariant"
+    - source_features: ["mean_r", "mean_g", "mean_b"]  # dropped after engineering
+    - target_group: "engineered"
     
   # 5. Global-Local Interaction
   size_anomaly:
@@ -301,17 +305,30 @@ clustering:
 # =============================================================================
 data_augmentation:
   # 1. Gaussian Noise Injection
+  # NOTE: target_features updated — cell_area_px / perimeter_px / mean_r/g/b are
+  # dropped after feature engineering and no longer exist at this pipeline stage.
   gaussian_noise:
-    target_groups: ["group_b", "group_c"]
-    target_features: ["cell_diameter_um", "cell_area_px", "perimeter_px", "cytoplasm_ratio", "membrane_smoothness", "granularity_score", "mean_r", "mean_g", "mean_b"]
-    sigma_percentage: 0.01  # 1-2% of standard deviation
-    description: "Simulate measurement errors"
-    
+    target_groups: ["group_b", "engineered_physical"]
+    target_features:
+      - "cell_diameter_um"
+      - "cytoplasm_ratio"
+      - "membrane_smoothness"
+      - "granularity_score"
+      - "true_cell_area"      # physical unit version of cell_area_px
+      - "true_perimeter"      # physical unit version of perimeter_px
+      - "stain_intensity"     # remaining Group C color feature
+    sigma_percentage: 0.01
+    description: "Simulate measurement errors (targets updated after source-feature drops)"
+
   # 2. Staining Protocol Shifting
+  # IMPORTANT: runs as Step 5, BEFORE Feature Engineering (Step 6).
+  # Reason: chromaticity ratios must be computed from bias-free colors.
   protocol_shifting:
+    pipeline_step: 5
+    runs_before: "feature_engineering (Step 6)"
     target_features: ["mean_r", "mean_g", "mean_b", "stain_intensity"]
     method: "group_wise_normalization"
-    description: "Normalize color across different staining protocols"
+    description: "Normalize color across different staining protocols before chromaticity ratios are computed"
     
   # 3. SMOTE for Imbalance
   smote:
@@ -451,18 +468,43 @@ pipeline_order:
   # -------------------------------------------------------------------------
   # MEMBER 2: Categorical & Feature Engineering
   # -------------------------------------------------------------------------
-  step_7:
+  step_5_protocol_shift:
+    member: 2
+    task: "Staining Protocol Shifting (BEFORE Feature Engineering)"
+    description: |
+      Normalize mean_r, mean_g, mean_b, stain_intensity across staining protocols via
+      group-wise mean shift. Must run before Step 6 so that chromaticity ratios are
+      computed from bias-free (protocol-normalised) color values.
+    input: "data/intermediate/numeric_processed.csv"
+    output: "data/intermediate/protocol_shifted.csv"
+
+  step_6_feature_eng:
+    member: 2
+    task: "Create domain-based features (from shifted colors)"
+    description: |
+      N/C Ratio, Form Factor, Chromaticity (r_ratio, g_ratio only — b_ratio dropped),
+      Size Anomaly, physical unit features. Chromaticity is computed from
+      protocol-shifted colors produced in Step 5.
+    output: "data/intermediate/feature_engineered.csv"
+
+  step_7_drop_sources:
+    member: 2
+    task: "Drop source features after engineering (multicollinearity prevention)"
+    description: |
+      Drop features that are now fully encoded by engineered ones:
+        nucleus_area_pct → nc_ratio      (monotonic bijection, VIF=∞)
+        cell_area_px     → true_cell_area + form_factor
+        perimeter_px     → true_perimeter + form_factor
+        mean_r/g/b       → r_ratio, g_ratio (chromaticity post-shift)
+        b_ratio          → 1 - r_ratio - g_ratio (perfect linear dependency)
+    output: "data/intermediate/sources_dropped.csv"
+
+  step_8_categorical:
     member: 2
     task: "Encode categorical variables"
-    description: "One-Hot encoding (staining_protocol, patient_sex), Ordinal encoding (patient_age_group), drop leakage/ID columns (cell_id, disease_category, dataset_source, microscope_model)"
-    input: "data/intermediate/numeric_processed.csv"
+    description: "One-Hot encoding (staining_protocol, patient_sex), Ordinal encoding (patient_age_group)"
+    input: "data/intermediate/sources_dropped.csv"
     output: "data/intermediate/categorical_encoded.csv"
-    
-  step_8:
-    member: 2
-    task: "Create domain-based features"
-    description: "N/C Ratio, Form Factor, Chromaticity, Size Anomaly"
-    output: "data/intermediate/feature_engineered.csv"
     
   step_9:
     member: 2
