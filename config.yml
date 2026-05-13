@@ -388,8 +388,11 @@ feature_selection:
     
   # 5. Permutation Importance
   permutation_importance:
-    method: "shap"
-    description: "Explain model decisions post-training"
+    method: "sklearn.inspection.permutation_importance"
+    input: "transformed features (post-pipeline classifier input, not raw columns)"
+    scoring: "f1"
+    n_repeats: 10
+    description: "Rank features by drop in F1 when each transformed feature is randomly shuffled — operates after pipeline transforms, not on raw input"
 
 # =============================================================================
 # CLASS IMBALANCE HANDLING (Member 3)

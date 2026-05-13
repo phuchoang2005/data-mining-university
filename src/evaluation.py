@@ -130,15 +130,46 @@ def plot_shap_summary(model, X_test, filepath):
         print(f"SHAP summary plot failed: {e}")
 
 def plot_permutation_importance(model, X_test, y_test, filepath):
-    """Plot permutation importance."""
+    """Plot permutation importance on transformed (post-pipeline) features."""
     try:
-        perm_importance = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, scoring='f1')
+        classifier = model
+        X_transformed = X_test
+
+        if hasattr(model, 'named_steps'):
+            classifier = model.named_steps['classifier']
+            X_transformed = X_test
+            for name, step in model.steps:
+                if name == 'classifier':
+                    break
+                if hasattr(step, 'transform'):
+                    X_transformed = step.transform(X_transformed)
+
+            if not isinstance(X_transformed, pd.DataFrame):
+                feature_names = None
+                for name, step in reversed(model.steps):
+                    if name == 'classifier':
+                        continue
+                    if hasattr(step, 'get_feature_names_out'):
+                        try:
+                            feature_names = step.get_feature_names_out()
+                            break
+                        except Exception:
+                            continue
+                X_transformed = pd.DataFrame(X_transformed, columns=feature_names)
+
+        perm_importance = permutation_importance(
+            classifier, X_transformed, y_test, n_repeats=10, random_state=42, scoring='f1'
+        )
         sorted_idx = perm_importance.importances_mean.argsort()
+        feature_labels = (
+            list(X_transformed.columns) if hasattr(X_transformed, 'columns')
+            else [str(i) for i in range(X_transformed.shape[1])]
+        )
         plt.figure(figsize=(10, 6))
         plt.barh(range(len(sorted_idx)), perm_importance.importances_mean[sorted_idx])
-        plt.yticks(range(len(sorted_idx)), X_test.columns[sorted_idx])
+        plt.yticks(range(len(sorted_idx)), [feature_labels[i] for i in sorted_idx])
         plt.xlabel("Permutation Importance")
-        plt.title("Permutation Importance (F1 Score)")
+        plt.title("Permutation Importance (F1 Score) — Transformed Features")
         save_figure(plt.gcf(), filepath)
     except Exception as e:
         print(f"Permutation importance plot failed: {e}")
