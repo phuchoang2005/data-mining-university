@@ -7,7 +7,6 @@ from sklearn.metrics import (
 )
 import shap
 from sklearn.inspection import permutation_importance
-import joblib
 import pandas as pd
 from .utils import save_figure, save_json
 
@@ -174,19 +173,46 @@ def plot_permutation_importance(model, X_test, y_test, filepath):
     except Exception as e:
         print(f"Permutation importance plot failed: {e}")
 
-def plot_feature_importance(model_path, X_test, filepath):
-    """Plot feature importance for tree-based models."""
+def plot_feature_importance(model, X_test, filepath):
+    """Plot feature importance for tree-based models on transformed features."""
     try:
-        model = joblib.load(model_path)
-        classifier = model.named_steps['classifier']
+        classifier = model
+        X_transformed = X_test
+
+        if hasattr(model, 'named_steps'):
+            classifier = model.named_steps['classifier']
+            X_transformed = X_test
+            for name, step in model.steps:
+                if name == 'classifier':
+                    break
+                if hasattr(step, 'transform'):
+                    X_transformed = step.transform(X_transformed)
+
+            if not isinstance(X_transformed, pd.DataFrame):
+                feature_names = None
+                for name, step in reversed(model.steps):
+                    if name == 'classifier':
+                        continue
+                    if hasattr(step, 'get_feature_names_out'):
+                        try:
+                            feature_names = step.get_feature_names_out()
+                            break
+                        except Exception:
+                            continue
+                X_transformed = pd.DataFrame(X_transformed, columns=feature_names)
+
         if hasattr(classifier, 'feature_importances_'):
             importances = classifier.feature_importances_
             indices = importances.argsort()[::-1]
+            feature_labels = (
+                list(X_transformed.columns) if hasattr(X_transformed, 'columns')
+                else [str(i) for i in range(X_transformed.shape[1])]
+            )
             plt.figure(figsize=(10, 6))
             plt.barh(range(len(indices)), importances[indices])
-            plt.yticks(range(len(indices)), X_test.columns[indices])
+            plt.yticks(range(len(indices)), [feature_labels[i] for i in indices])
             plt.xlabel("Feature Importance")
-            plt.title("Feature Importance")
+            plt.title("Feature Importance — Transformed Features")
             save_figure(plt.gcf(), filepath)
     except Exception as e:
         print(f"Feature importance plot failed: {e}")

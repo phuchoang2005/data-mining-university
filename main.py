@@ -170,8 +170,9 @@ def main():
         print(f"Best model saved to {best_output_path}")
 
         # Feature importance for best model (if tree-based)
-        if hasattr(joblib.load(best_model_path).named_steps['classifier'], 'feature_importances_'):
-            plot_feature_importance(best_model_path, X_test, f"reports/feature_importance.png")
+        best_model = joblib.load(best_model_path)
+        if hasattr(best_model.named_steps['classifier'], 'feature_importances_'):
+            plot_feature_importance(best_model, X_test, f"reports/feature_importance.png")
 
         # Generate reports
         generate_training_report(all_results, config['output']['leader']['training_report'])
