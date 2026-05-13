@@ -738,12 +738,14 @@
       <div class="card-body">
         <div class="row g-3">
           <div class="col-lg-5">
-            <div class="formula-box">$$\text{Form\_Factor} = \frac{4\pi \times \text{cell\_area\_px}}{\text{perimeter\_px}^2}$$</div>
+            <div class="formula-box">$$\text{Form\_Factor} = \frac{4\pi \times \text{true\_cell\_area}}{\text{true\_perimeter}^2}$$</div>
           </div>
           <div class="col-lg-7">
             <div class="rationale">
               The isoperimetric quotient: 1.0 = perfect circle (normal morphology); lower values indicate elongated, lobulated, or membrane-deformed cells (abnormal). Mathematically, for a fixed area, a circle has the shortest possible perimeter — any deviation reduces this ratio.<br/><br/>
-              <strong>Source features dropped after:</strong> <code>cell_area_px</code> and <code>perimeter_px</code> are encoded by <code>true_cell_area</code>, <code>true_perimeter</code>, and <code>form_factor</code>.
+              <strong>Computed from physical-unit columns</strong> (<code>true_cell_area</code>, <code>true_perimeter</code>) created in Step 4 — not from raw pixel columns — so the ratio is magnification-invariant.<br/><br/>
+              <span class="badge bg-warning text-dark me-1"><i class="bi bi-exclamation-triangle"></i> Note</span>
+              <code>true_perimeter</code> is dropped in Step 7: keeping <code>true_cell_area</code>, <code>true_perimeter</code>, and <code>form_factor</code> together gives VIF = ∞ for <code>true_perimeter</code>.
             </div>
           </div>
         </div>
@@ -785,7 +787,9 @@
           </div>
           <div class="col-lg-7">
             <div class="rationale">
-              A 12 µm cell is normal for one patient but giant for another whose average RBC is 7 µm. <code>mcv_fl</code> (mean corpuscular volume) captures the patient's own baseline. A high ratio flags cells that are anomalously large relative to that patient — a signal for blasts or macrophages.
+              A 12 µm cell is normal for one patient but giant for another whose average RBC is 7 µm. <code>mcv_fl</code> (mean corpuscular volume) captures the patient's own baseline. A high ratio flags cells that are anomalously large relative to that patient — a signal for blasts or macrophages.<br/><br/>
+              <span class="badge bg-warning text-dark me-1"><i class="bi bi-exclamation-triangle"></i> Multicollinearity fix</span>
+              Both <code>cell_diameter_um</code> and <code>mcv_fl</code> are <strong>dropped in Step 7</strong> after this feature is computed. Keeping a divisor alongside its ratio (size_anomaly = cell_diameter_um / mcv_fl) inflates VIF for all three — the ratio captures the cross-group interaction; the raw values add no independent signal.
             </div>
           </div>
         </div>
@@ -796,7 +800,8 @@
     <div class="card">
       <div class="card-header"><span class="badge badge-b me-2">Group B → Engineered</span><span class="fw-semibold">5 — Physical-unit Features (from Step 4)</span></div>
       <div class="card-body">
-        <p class="text-secondary small mb-0"><code>true_cell_area</code> and <code>true_perimeter</code> produced in Step 4 are carried through as engineered features. They replace <code>cell_area_px</code> and <code>perimeter_px</code> (dropped in Step 7).</p>
+        <p class="text-secondary small mb-0"><code>true_cell_area</code> produced in Step 4 is carried through as an engineered feature. It replaces <code>cell_area_px</code> (dropped in Step 7).<br/>
+        <code>true_perimeter</code> is also produced in Step 4 and is used by Step 6 to compute <code>form_factor</code>, then <strong>dropped in Step 7</strong>: since $\text{form\_factor} = \frac{4\pi \cdot \text{true\_cell\_area}}{\text{true\_perimeter}^2}$, keeping all three creates a perfect linear dependency (VIF = ∞ for <code>true_perimeter</code>).</p>
       </div>
     </div>
   </section>
@@ -821,11 +826,14 @@
         <table class="table table-hover mb-0">
           <thead><tr><th>Column Dropped</th><th>Replaced By</th><th>Multicollinearity Reason</th></tr></thead>
           <tbody>
-            <tr><td><code>nucleus_area_pct</code></td><td><code>nc_ratio</code></td><td>$\text{NC\_Ratio} = f(\text{nucleus\_area\_pct})$ is a monotonic bijection → $r = 1$</td></tr>
-            <tr><td><code>cell_area_px</code></td><td><code>true\_cell\_area</code>, <code>form\_factor</code></td><td>Linear transform of area (same shape); form factor uses the raw pixel value</td></tr>
-            <tr><td><code>perimeter_px</code></td><td><code>true\_perimeter</code>, <code>form\_factor</code></td><td>Linear transform; form factor already encodes the ratio</td></tr>
-            <tr><td><code>mean_r</code>, <code>mean_g</code>, <code>mean_b</code></td><td><code>r\_ratio</code>, <code>g\_ratio</code>, <code>stain\_intensity</code></td><td>Hue captured by ratios; brightness by <code>stain_intensity</code>; keeping absolutes duplicates both</td></tr>
-            <tr><td><code>b_ratio</code></td><td>(implicit: $1 - r\_ratio - g\_ratio$)</td><td>$r+g+b \equiv 1$ → perfect linear dependency, VIF = ∞</td></tr>
+            <tr><td><code>nucleus_area_pct</code></td><td><code>nc_ratio</code></td><td>Monotonic bijection → $r = 1.0$, VIF = ∞</td></tr>
+            <tr><td><code>cell_area_px</code></td><td><code>true_cell_area</code>, <code>form_factor</code></td><td>Linear rescale of area; form factor uses the same raw pixel value</td></tr>
+            <tr><td><code>perimeter_px</code></td><td><code>true_perimeter</code> → then dropped</td><td>Linear rescale; form factor encodes the same shape ratio</td></tr>
+            <tr><td><code>true_perimeter</code></td><td><code>form_factor</code> + <code>true_cell_area</code></td><td>$\text{form\_factor} = 4\pi \cdot \text{true\_cell\_area} / \text{true\_perimeter}^2$ → recoverable exactly → VIF = ∞</td></tr>
+            <tr><td><code>mean_r</code>, <code>mean_g</code>, <code>mean_b</code></td><td><code>r_ratio</code>, <code>g_ratio</code>, <code>stain_intensity</code></td><td>Hue encoded by ratios; brightness by <code>stain_intensity</code>; keeping absolutes duplicates both</td></tr>
+            <tr><td><code>b_ratio</code></td><td>(implicit: $1 - r\_\text{ratio} - g\_\text{ratio}$)</td><td>$r+g+b \equiv 1$ → perfect linear dependency, VIF = ∞</td></tr>
+            <tr class="table-warning"><td><code>cell_diameter_um</code></td><td><code>size_anomaly</code></td><td>Direct divisor of the ratio — keeping source + ratio inflates VIF for all three</td></tr>
+            <tr class="table-warning"><td><code>mcv_fl</code></td><td><code>size_anomaly</code></td><td>Direct divisor of the ratio — keeping source + ratio inflates VIF for all three</td></tr>
           </tbody>
         </table>
       </div>
@@ -924,7 +932,7 @@
           <div class="col-xl-4">
             <div class="text-secondary text-uppercase mb-2" style="font-size:.7rem;letter-spacing:.08em">Features after Step 7</div>
             <div class="d-flex flex-wrap gap-1 mb-3">
-              <span class="feat-pill pill-b">cell_diameter_um</span>
+              <span class="feat-pill pill-drop">cell_diameter_um ✕</span>
               <span class="feat-pill pill-drop">cell_area_px ✕</span>
               <span class="feat-pill pill-drop">perimeter_px ✕</span>
               <span class="feat-pill pill-b">cytoplasm_ratio</span>
@@ -971,7 +979,7 @@
               <span class="feat-pill pill-c">hemoglobin_g_dl</span>
               <span class="feat-pill pill-c">hematocrit_pct</span>
               <span class="feat-pill pill-c">platelet_count_per_ul</span>
-              <span class="feat-pill pill-c">mcv_fl</span>
+              <span class="feat-pill pill-drop">mcv_fl ✕</span>
               <span class="feat-pill pill-c">mchc_g_dl</span>
               <span class="feat-pill pill-drop">mean_r / g / b ✕</span>
               <span class="feat-pill pill-c">stain_intensity</span>
@@ -1017,8 +1025,9 @@
               <span class="feat-pill pill-drop">b_ratio ✕</span>
               <span class="feat-pill pill-eng">size_anomaly</span>
               <span class="feat-pill pill-eng">true_cell_area</span>
-              <span class="feat-pill pill-eng">true_perimeter</span>
+              <span class="feat-pill pill-drop">true_perimeter ✕</span>
             </div>
+            <p class="text-secondary small mt-1 mb-0" style="font-size:.78rem"><code>true_perimeter</code> is dropped in Step 7 (VIF = ∞ with <code>form_factor</code> + <code>true_cell_area</code>)</p>
           </div>
           <div class="col-xl-8">
             <div class="formula-box" style="font-size:.78rem">$$x' = \frac{x - \mu}{\sigma}$$</div>
@@ -1100,17 +1109,17 @@
           <div class="col-lg-7">
             <div class="rationale">
               Simulates realistic measurement noise from microscope cameras and hematological analyzers without distorting biological signals. At 1% σ, the perturbation is undetectable visually but prevents the model from memorising exact sensor readings (overfitting to device precision).<br/><br/>
-              <strong>Targets updated after Step 7 drops</strong> — <code>cell_area_px</code>, <code>perimeter_px</code>, <code>mean_r/g/b</code> no longer exist:
+              <strong>Targets updated after Step 7 drops</strong> — <code>cell_area_px</code>, <code>perimeter_px</code>, <code>mean_r/g/b</code>, <code>cell_diameter_um</code>, <code>mcv_fl</code>, <code>true_perimeter</code> no longer exist:
             </div>
           </div>
         </div>
         <div class="d-flex flex-wrap gap-1">
-          <span class="feat-pill pill-b">cell_diameter_um</span>
+          <span class="feat-pill pill-drop">cell_diameter_um ✕</span>
           <span class="feat-pill pill-b">cytoplasm_ratio</span>
           <span class="feat-pill pill-b">membrane_smoothness</span>
           <span class="feat-pill pill-b">granularity_score</span>
           <span class="feat-pill pill-eng">true_cell_area</span>
-          <span class="feat-pill pill-eng">true_perimeter</span>
+          <span class="feat-pill pill-drop">true_perimeter ✕</span>
           <span class="feat-pill pill-c">stain_intensity</span>
         </div>
         <div class="warn-box mt-3">

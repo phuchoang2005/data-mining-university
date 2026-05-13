@@ -19,9 +19,9 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             X_df['nc_ratio'] = X_df['nucleus_area_pct'] / denom
             
         # 3. Form Factor (Shape Complexity)
-        if 'cell_area_px' in X_df.columns and 'perimeter_px' in X_df.columns:
-            denom = np.maximum(X_df['perimeter_px'] ** 2, 1e-6)
-            X_df['form_factor'] = (4 * np.pi * X_df['cell_area_px']) / denom
+        if 'true_cell_area' in X_df.columns and 'true_perimeter' in X_df.columns:
+            denom = np.maximum(X_df['true_perimeter'] ** 2, 1e-6)
+            X_df['form_factor'] = (4 * np.pi * X_df['true_cell_area']) / denom
             
         # 4. Chromaticity
         if all(c in X_df.columns for c in ['mean_r', 'mean_g', 'mean_b']):

@@ -60,16 +60,20 @@ def build_preprocessing_pipeline(config=None):
 
     # Group B: Morphology — multi-modal distributions, no raw pixel cols
     group_b_features = [
-        "cell_diameter_um",
-        # cell_area_px  REMOVED → replaced by true_cell_area (physical units)
-        # perimeter_px  REMOVED → replaced by true_perimeter (physical units)
+        # cell_diameter_um REMOVED → encoded by size_anomaly (ratio with mcv_fl); keeping
+        #   both would give VIF > 10 since size_anomaly is a direct function of cell_diameter_um
+        # cell_area_px     REMOVED → replaced by true_cell_area (physical units)
+        # perimeter_px     REMOVED → replaced by true_perimeter then dropped (see below)
         "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
     ]
 
     # Group C: Hematology / Technical noise — symmetric, low separability
     group_c_features = [
         "wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl",
-        "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl",
+        "hematocrit_pct", "platelet_count_per_ul",
+        # mcv_fl   REMOVED → encoded by size_anomaly (ratio with cell_diameter_um); keeping
+        #   both would give VIF > 10 since size_anomaly is a direct function of mcv_fl
+        "mchc_g_dl",
         # mean_r / mean_g / mean_b REMOVED → replaced by r_ratio, g_ratio (chromaticity)
         "stain_intensity",
     ]
@@ -78,9 +82,12 @@ def build_preprocessing_pipeline(config=None):
     engineered_features = [
         "nc_ratio", "form_factor",
         "r_ratio", "g_ratio",
-        # b_ratio REMOVED → r_ratio + g_ratio + b_ratio ≡ 1 (perfect linear dependency)
+        # b_ratio       REMOVED → r_ratio + g_ratio + b_ratio ≡ 1 (perfect linear dependency)
         "size_anomaly",
-        "true_cell_area", "true_perimeter",
+        "true_cell_area",
+        # true_perimeter REMOVED → form_factor is computed directly as
+        #   4π·true_cell_area / true_perimeter² (Step 6 uses physical-unit columns);
+        #   keeping true_perimeter alongside true_cell_area + form_factor gives VIF = ∞
     ]
 
     # ── Numeric sub-pipelines for ColumnTransformer (Step 10) ────────────────────
@@ -168,17 +175,23 @@ def build_preprocessing_pipeline(config=None):
 
         # Step 7: Drop source features that are now encoded by engineered ones
         #   Avoids multicollinearity before scaling & selection:
-        #   nucleus_area_pct  → nc_ratio     (monotonic bijection, VIF = ∞)
-        #   cell_area_px      → true_cell_area + form_factor
-        #   perimeter_px      → true_perimeter + form_factor
-        #   mean_r/g/b        → r_ratio, g_ratio (chromaticity, post-shift)
-        #   b_ratio           → 1 - r_ratio - g_ratio (perfect linear dependency)
+        #   nucleus_area_pct → nc_ratio        (monotonic bijection, VIF = ∞)
+        #   cell_area_px     → true_cell_area + form_factor
+        #   perimeter_px     → true_perimeter, then true_perimeter itself dropped below
+        #   mean_r/g/b       → r_ratio, g_ratio (chromaticity, post-shift)
+        #   b_ratio          → 1 - r_ratio - g_ratio (perfect linear dependency, VIF = ∞)
+        #   cell_diameter_um → size_anomaly    (direct divisor, elevated VIF)
+        #   mcv_fl           → size_anomaly    (direct divisor, elevated VIF)
+        #   true_perimeter   → form_factor = 4π·true_cell_area/true_perimeter² directly (VIF = ∞)
         ('drop_engineered_sources', ColumnDropper(columns=[
             "nucleus_area_pct",
             "cell_area_px",
             "perimeter_px",
             "mean_r", "mean_g", "mean_b",
             "b_ratio",
+            "cell_diameter_um",
+            "mcv_fl",
+            "true_perimeter",
         ])),
 
         # Step 8: Categorical encoding
@@ -198,14 +211,15 @@ def build_preprocessing_pipeline(config=None):
         ('gmm_cluster', GMMClusterer(n_components_range=(3, 5))),
 
         # Step 12: Gaussian noise on Group B + physical engineered features
-        #   cell_area_px / perimeter_px / mean_r/g/b already dropped; targets updated
+        #   cell_diameter_um / true_perimeter dropped in Step 7; targets updated
         ('gaussian_noise', FunctionSampler(
             func=gaussian_noise_sampler,
             kw_args={
                 "target_features": [
-                    "cell_diameter_um",
+                    # cell_diameter_um REMOVED — dropped in Step 7
                     "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
-                    "true_cell_area", "true_perimeter",
+                    "true_cell_area",
+                    # true_perimeter   REMOVED — dropped in Step 7
                     "stain_intensity",
                 ],
                 "sigma_percentage": 0.01,
@@ -219,7 +233,9 @@ def build_preprocessing_pipeline(config=None):
             kw_args={
                 "target_features": [
                     "wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl",
-                    "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl",
+                    "hematocrit_pct", "platelet_count_per_ul",
+                    # mcv_fl REMOVED — dropped in Step 7
+                    "mchc_g_dl",
                 ],
                 "factor_range": (0.98, 1.02),
             },

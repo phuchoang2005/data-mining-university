@@ -111,9 +111,10 @@ numeric_groups:
     name: "Nhóm B: Hình thái học (Cần xử lý Skewness)"
     description: "Average separability, multi-modal distribution"
     features:
-      - "cell_diameter_um"
-      # cell_area_px REMOVED after feature engineering: replaced by true_cell_area
-      # perimeter_px  REMOVED after feature engineering: replaced by true_perimeter
+      # cell_diameter_um REMOVED after feature engineering: direct divisor of size_anomaly
+      #   (size_anomaly = cell_diameter_um / mcv_fl) → keeping both gives VIF = ∞
+      # cell_area_px     REMOVED after feature engineering: replaced by true_cell_area
+      # perimeter_px     REMOVED after feature engineering: used by form_factor then dropped
       - "cytoplasm_ratio"
       - "membrane_smoothness"
       - "granularity_score"
@@ -138,7 +139,8 @@ numeric_groups:
       - "hemoglobin_g_dl"
       - "hematocrit_pct"
       - "platelet_count_per_ul"
-      - "mcv_fl"
+      # mcv_fl REMOVED after feature engineering: direct divisor of size_anomaly
+      #   (size_anomaly = cell_diameter_um / mcv_fl) → keeping both gives VIF = ∞
       - "mchc_g_dl"
       # mean_r / mean_g / mean_b REMOVED after feature engineering:
       # replaced by r_ratio, g_ratio (chromaticity ratios computed from
@@ -249,9 +251,12 @@ feature_engineering:
     
   # 3. Shape Complexity (Form Factor)
   form_factor:
-    formula: "(4 * pi * cell_area_px) / (perimeter_px ^ 2)"
+    formula: "(4 * pi * true_cell_area) / (true_perimeter ^ 2)"
+    source_features: ["true_cell_area", "true_perimeter"]
+    note: "Computed from physical-unit columns (Step 4 output), not raw pixels — magnification-invariant"
     interpretation: "1.0 = perfect circle, lower = more complex shape"
-    target_group: "group_a + group_b"
+    multicollinearity: "true_perimeter dropped in Step 7 — keeping true_cell_area + true_perimeter + form_factor gives VIF = ∞"
+    target_group: "engineered"
     
   # 4. Chromaticity Features
   # NOTE: computed AFTER protocol shifting (Step 5) so that ratios reflect
@@ -311,15 +316,15 @@ data_augmentation:
   gaussian_noise:
     target_groups: ["group_b", "engineered_physical"]
     target_features:
-      - "cell_diameter_um"
+      # cell_diameter_um REMOVED — dropped in Step 7 (encoded by size_anomaly)
       - "cytoplasm_ratio"
       - "membrane_smoothness"
       - "granularity_score"
       - "true_cell_area"      # physical unit version of cell_area_px
-      - "true_perimeter"      # physical unit version of perimeter_px
+      # true_perimeter   REMOVED — dropped in Step 7 (VIF = ∞ with form_factor + true_cell_area)
       - "stain_intensity"     # remaining Group C color feature
     sigma_percentage: 0.01
-    description: "Simulate measurement errors (targets updated after source-feature drops)"
+    description: "Simulate measurement errors (targets updated after source-feature drops in Step 7)"
 
   # 2. Staining Protocol Shifting
   # IMPORTANT: runs as Step 5, BEFORE Feature Engineering (Step 6).
@@ -339,9 +344,16 @@ data_augmentation:
   # 4. Covariate Shift Simulation
   covariate_shift:
     target_groups: ["group_c"]
-    target_features: ["wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl", "hematocrit_pct", "platelet_count_per_ul", "mcv_fl", "mchc_g_dl"]
+    target_features:
+      - "wbc_count_per_ul"
+      - "rbc_count_millions_per_ul"
+      - "hemoglobin_g_dl"
+      - "hematocrit_pct"
+      - "platelet_count_per_ul"
+      # mcv_fl REMOVED — dropped in Step 7 (encoded by size_anomaly)
+      - "mchc_g_dl"
     factor_range: [0.98, 1.02]
-    description: "Simulate variation between different hospitals"
+    description: "Simulate variation between different hospitals (targets updated after Step 7 drops)"
 
 # =============================================================================
 # FEATURE SELECTION (Member 3)
@@ -481,11 +493,14 @@ pipeline_order:
 
   step_6_feature_eng:
     member: 2
-    task: "Create domain-based features (from shifted colors)"
+    task: "Create domain-based features (from shifted colors and physical units)"
     description: |
-      N/C Ratio, Form Factor, Chromaticity (r_ratio, g_ratio only — b_ratio dropped),
-      Size Anomaly, physical unit features. Chromaticity is computed from
-      protocol-shifted colors produced in Step 5.
+      N/C Ratio: from nucleus_area_pct.
+      Form Factor: computed from true_cell_area and true_perimeter (Step 4 physical-unit output),
+        NOT from raw cell_area_px / perimeter_px — magnification-invariant.
+      Chromaticity (r_ratio, g_ratio only — b_ratio dropped): from protocol-shifted
+        mean_r/g/b produced in-place by Step 5.
+      Size Anomaly: from cell_diameter_um and mcv_fl.
     output: "data/intermediate/feature_engineered.csv"
 
   step_7_drop_sources:
@@ -493,11 +508,14 @@ pipeline_order:
     task: "Drop source features after engineering (multicollinearity prevention)"
     description: |
       Drop features that are now fully encoded by engineered ones:
-        nucleus_area_pct → nc_ratio      (monotonic bijection, VIF=∞)
+        nucleus_area_pct → nc_ratio           (monotonic bijection, VIF=∞)
         cell_area_px     → true_cell_area + form_factor
-        perimeter_px     → true_perimeter + form_factor
-        mean_r/g/b       → r_ratio, g_ratio (chromaticity post-shift)
-        b_ratio          → 1 - r_ratio - g_ratio (perfect linear dependency)
+        perimeter_px     → true_perimeter (used by form_factor), then true_perimeter dropped too
+        mean_r/g/b       → r_ratio, g_ratio   (chromaticity post-shift)
+        b_ratio          → 1 - r_ratio - g_ratio (perfect linear dependency, VIF=∞)
+        cell_diameter_um → size_anomaly        (direct divisor, VIF=∞)
+        mcv_fl           → size_anomaly        (direct divisor, VIF=∞)
+        true_perimeter   → form_factor = 4π·true_cell_area/true_perimeter² (VIF=∞)
     output: "data/intermediate/sources_dropped.csv"
 
   step_8_categorical:
