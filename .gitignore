@@ -278,4 +278,5 @@ credentials.json
 Thumbs.db
 .agents
 
-docs-old
+docs-old/
+CLAUDE.md

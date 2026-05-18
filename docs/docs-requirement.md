@@ -107,6 +107,7 @@ Possible preprocessing techniques may include:
 * Discuss the impact of preprocessing techniques on model performance.
 * Identify strengths, limitations, and possible improvements.
 * Highlight the key findings and insights obtained from the experiments.
+* Deployment & Operational Feasibility
 
 ---
 
