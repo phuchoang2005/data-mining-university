@@ -602,7 +602,7 @@
           <span class="feat-pill pill-c">mean_r</span>
           <span class="feat-pill pill-c">mean_g</span>
           <span class="feat-pill pill-c">mean_b</span>
-          <span class="feat-pill pill-c">stain_intensity</span>
+          <!-- stain_intensity excluded: no longer in group_c_features (dropped in Step 7) -->
         </div>
         <img src="NhomC.png" alt="Group C EDA distributions" class="group-img" />
         <div class="img-caption">EDA: Group C KDE plots — near-Gaussian, KDEs for label 0/1 overlap completely (low discriminative power)</div>
@@ -701,6 +701,7 @@
           <span class="feat-pill pill-c">mean_g</span>
           <span class="feat-pill pill-c">mean_b</span>
           <span class="feat-pill pill-c">stain_intensity</span>
+          <span class="text-muted small ms-1">(shifted in Step 5, dropped in Step 7)</span>
         </div>
       </div>
     </div>
@@ -830,7 +831,8 @@
             <tr><td><code>cell_area_px</code></td><td><code>true_cell_area</code>, <code>form_factor</code></td><td>Linear rescale of area; form factor uses the same raw pixel value</td></tr>
             <tr><td><code>perimeter_px</code></td><td><code>true_perimeter</code> → then dropped</td><td>Linear rescale; form factor encodes the same shape ratio</td></tr>
             <tr><td><code>true_perimeter</code></td><td><code>form_factor</code> + <code>true_cell_area</code></td><td>$\text{form\_factor} = 4\pi \cdot \text{true\_cell\_area} / \text{true\_perimeter}^2$ → recoverable exactly → VIF = ∞</td></tr>
-            <tr><td><code>mean_r</code>, <code>mean_g</code>, <code>mean_b</code></td><td><code>r_ratio</code>, <code>g_ratio</code>, <code>stain_intensity</code></td><td>Hue encoded by ratios; brightness by <code>stain_intensity</code>; keeping absolutes duplicates both</td></tr>
+            <tr><td><code>mean_r</code>, <code>mean_g</code>, <code>mean_b</code></td><td><code>r_ratio</code>, <code>g_ratio</code></td><td>Hue fully encoded by chromaticity ratios; absolute channel values add no independent information</td></tr>
+            <tr class="table-warning"><td><code>stain_intensity</code></td><td>(dropped)</td><td>After protocol shift, ≅ mean_r+mean_g+mean_b (already dropped); retaining the sum inflates VIF with r_ratio + g_ratio</td></tr>
             <tr><td><code>b_ratio</code></td><td>(implicit: $1 - r\_\text{ratio} - g\_\text{ratio}$)</td><td>$r+g+b \equiv 1$ → perfect linear dependency, VIF = ∞</td></tr>
             <tr class="table-warning"><td><code>cell_diameter_um</code></td><td><code>size_anomaly</code></td><td>Direct divisor of the ratio — keeping source + ratio inflates VIF for all three</td></tr>
             <tr class="table-warning"><td><code>mcv_fl</code></td><td><code>size_anomaly</code></td><td>Direct divisor of the ratio — keeping source + ratio inflates VIF for all three</td></tr>
@@ -982,7 +984,7 @@
               <span class="feat-pill pill-drop">mcv_fl ✕</span>
               <span class="feat-pill pill-c">mchc_g_dl</span>
               <span class="feat-pill pill-drop">mean_r / g / b ✕</span>
-              <span class="feat-pill pill-c">stain_intensity</span>
+              <span class="feat-pill pill-drop">stain_intensity ✕</span>
             </div>
             <img src="NhomC.png" alt="Group C distributions" class="group-img" />
             <div class="img-caption">EDA: near-Gaussian, symmetric, KDEs for label 0/1 completely overlapping</div>
@@ -1114,13 +1116,12 @@
           </div>
         </div>
         <div class="d-flex flex-wrap gap-1">
-          <span class="feat-pill pill-drop">cell_diameter_um ✕</span>
           <span class="feat-pill pill-b">cytoplasm_ratio</span>
           <span class="feat-pill pill-b">membrane_smoothness</span>
           <span class="feat-pill pill-b">granularity_score</span>
           <span class="feat-pill pill-eng">true_cell_area</span>
           <span class="feat-pill pill-drop">true_perimeter ✕</span>
-          <span class="feat-pill pill-c">stain_intensity</span>
+          <span class="feat-pill pill-drop">stain_intensity ✕</span>
         </div>
         <div class="warn-box mt-3">
           <i class="bi bi-exclamation-triangle me-1"></i>
@@ -1383,7 +1384,7 @@
           <thead><tr><th class="ps-3">Step</th><th>Method</th><th>Applied To</th><th>Why Chosen</th></tr></thead>
           <tbody>
             <tr><td class="ps-3">1</td><td>Row filter ≥ 0.5</td><td>labeller_confidence_score</td><td>Remove uncertain labels before training</td></tr>
-            <tr><td class="ps-3">2</td><td>IQR Trimming ×1.5</td><td>Group C (11 features)</td><td>Symmetric noise-driven outliers — safe to delete</td></tr>
+            <tr><td class="ps-3">2</td><td>IQR Trimming ×1.5</td><td>Group C (10 features)</td><td>Symmetric noise-driven outliers — safe to delete</td></tr>
             <tr><td class="ps-3">3</td><td>Column drop</td><td>7 columns</td><td>Data leakage, no predictive value, statistical non-significance</td></tr>
             <tr><td class="ps-3">4</td><td>Physical unit conversion</td><td>cell_area_px, perimeter_px</td><td>Eliminate magnification bias (px → µm)</td></tr>
             <tr><td class="ps-3">5</td><td>Group-wise mean shift</td><td>mean_r/g/b, stain_intensity</td><td>Must precede chromaticity so ratios reflect true hue</td></tr>
@@ -1392,7 +1393,7 @@
             <tr><td class="ps-3">8</td><td>OHE + Ordinal Encoding</td><td>3 categorical features</td><td>Statistical significance (p&lt;0.05) and control variables</td></tr>
             <tr><td class="ps-3">10a</td><td>Winsorization + Yeo-Johnson + RobustScaler</td><td>Group A (4 features)</td><td>Skewed + critical outliers — preserve pathology signal</td></tr>
             <tr><td class="ps-3">10b</td><td>Winsorization + QuantileTransformer + StandardScaler</td><td>Group B (4 features)</td><td>Multi-modal — flatten peaks for consistent boundary</td></tr>
-            <tr><td class="ps-3">10c</td><td>MinMaxScaler</td><td>Group C (8 features)</td><td>Already Gaussian after IQR trim — minimal transform needed</td></tr>
+            <tr><td class="ps-3">10c</td><td>MinMaxScaler</td><td>Group C (7 features)</td><td>Already Gaussian after IQR trim — minimal transform needed</td></tr>
             <tr><td class="ps-3">10d</td><td>StandardScaler</td><td>Engineered (7 features)</td><td>Derived features, no strong outlier concern post-engineering</td></tr>
             <tr><td class="ps-3">11</td><td>GMM (BIC, K∈[3,5])</td><td>6 morphological features</td><td>Soft clustering for overlapping cell sub-populations</td></tr>
             <tr><td class="ps-3">12</td><td>Gaussian noise (σ=1%)</td><td>Group B + physical engineered</td><td>Simulate measurement error, prevent overfitting to sensor precision</td></tr>

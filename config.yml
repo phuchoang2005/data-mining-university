@@ -144,8 +144,10 @@ numeric_groups:
       - "mchc_g_dl"
       # mean_r / mean_g / mean_b REMOVED after feature engineering:
       # replaced by r_ratio, g_ratio (chromaticity ratios computed from
-      # protocol-shifted values). stain_intensity retained for absolute brightness.
-      - "stain_intensity"
+      # protocol-shifted values).
+      # stain_intensity REMOVED: after protocol shifting, stain_intensity ≅ mean_r+mean_g+mean_b
+      # (whose components are already dropped). Retaining it adds no independent signal
+      # and inflates VIF alongside r_ratio + g_ratio → dropped in step_7.
     
     processing:
       outlier_strategy: "trimming"
@@ -316,13 +318,13 @@ data_augmentation:
   gaussian_noise:
     target_groups: ["group_b", "engineered_physical"]
     target_features:
-      # cell_diameter_um REMOVED — dropped in Step 7 (encoded by size_anomaly)
+      # cell_diameter_um  REMOVED — dropped in Step 7 (encoded by size_anomaly)
       - "cytoplasm_ratio"
       - "membrane_smoothness"
       - "granularity_score"
       - "true_cell_area"      # physical unit version of cell_area_px
-      # true_perimeter   REMOVED — dropped in Step 7 (VIF = ∞ with form_factor + true_cell_area)
-      - "stain_intensity"     # remaining Group C color feature
+      # true_perimeter    REMOVED — dropped in Step 7 (VIF = ∞ with form_factor + true_cell_area)
+      # stain_intensity   REMOVED — dropped in Step 7 (VIF with r_ratio + g_ratio)
     sigma_percentage: 0.01
     description: "Simulate measurement errors (targets updated after source-feature drops in Step 7)"
 
@@ -333,6 +335,9 @@ data_augmentation:
     pipeline_step: 5
     runs_before: "feature_engineering (Step 6)"
     target_features: ["mean_r", "mean_g", "mean_b", "stain_intensity"]
+    # NOTE: stain_intensity is shifted in Step 5 (for bias removal) but then DROPPED in Step 7
+    # alongside mean_r/g/b. It is listed here only because it must be protocol-normalised
+    # before the Step 7 drop.
     method: "group_wise_normalization"
     description: "Normalize color across different staining protocols before chromaticity ratios are computed"
     
@@ -516,6 +521,8 @@ pipeline_order:
         perimeter_px     → true_perimeter (used by form_factor), then true_perimeter dropped too
         mean_r/g/b       → r_ratio, g_ratio   (chromaticity post-shift)
         b_ratio          → 1 - r_ratio - g_ratio (perfect linear dependency, VIF=∞)
+        stain_intensity  → dropped: ≅ mean_r+mean_g+mean_b whose components are already removed;
+                           retaining the brightness sum inflates VIF with r_ratio + g_ratio.
         cell_diameter_um → size_anomaly        (direct divisor, VIF=∞)
         mcv_fl           → size_anomaly        (direct divisor, VIF=∞)
         true_perimeter   → form_factor = 4π·true_cell_area/true_perimeter² (VIF=∞)
@@ -718,6 +725,7 @@ output:
     # Features: cell_diameter_um, cell_area_px, perimeter_px, cytoplasm_ratio, membrane_smoothness, granularity_score
     group_c_processed: "data/intermediate/group_c_processed.csv"
     # Features: wbc_count_per_ul, rbc_count_millions_per_ul, hemoglobin_g_dl, hematocrit_pct, platelet_count_per_ul, mcv_fl, mchc_g_dl, mean_r, mean_g, mean_b, stain_intensity
+    # NOTE: mcv_fl, mean_r, mean_g, mean_b, and stain_intensity are dropped in step_7_drop_sources (post-engineering multicollinearity prevention).
     group_d_processed: "data/intermediate/group_d_processed.csv"
     # Features: labeller_confidence_score, cytodiffusion_classification_confidence, cytodiffusion_anomaly_score (dropped)
     numeric_processed: "data/intermediate/numeric_processed.csv"

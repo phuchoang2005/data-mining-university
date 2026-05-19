@@ -71,11 +71,13 @@ def build_preprocessing_pipeline(config=None):
     group_c_features = [
         "wbc_count_per_ul", "rbc_count_millions_per_ul", "hemoglobin_g_dl",
         "hematocrit_pct", "platelet_count_per_ul",
-        # mcv_fl   REMOVED → encoded by size_anomaly (ratio with cell_diameter_um); keeping
+        # mcv_fl        REMOVED → encoded by size_anomaly (ratio with cell_diameter_um); keeping
         #   both would give VIF > 10 since size_anomaly is a direct function of mcv_fl
         "mchc_g_dl",
-        # mean_r / mean_g / mean_b REMOVED → replaced by r_ratio, g_ratio (chromaticity)
-        "stain_intensity",
+        # mean_r/g/b    REMOVED → replaced by r_ratio, g_ratio (chromaticity)
+        # stain_intensity REMOVED → after protocol shifting, stain_intensity = f(mean_r+mean_g+mean_b)
+        #   whose components are already dropped; retaining the sum adds no independent signal
+        #   and is flagged by VIF (high collinearity with r_ratio + g_ratio).
     ]
 
     # Engineered features: NC ratio, shape, color ratios, size, physical units
@@ -175,20 +177,23 @@ def build_preprocessing_pipeline(config=None):
 
         # Step 7: Drop source features that are now encoded by engineered ones
         #   Avoids multicollinearity before scaling & selection:
-        #   nucleus_area_pct → nc_ratio        (monotonic bijection, VIF = ∞)
+        #   nucleus_area_pct → nc_ratio          (monotonic bijection, VIF = ∞)
         #   cell_area_px     → true_cell_area + form_factor
         #   perimeter_px     → true_perimeter, then true_perimeter itself dropped below
-        #   mean_r/g/b       → r_ratio, g_ratio (chromaticity, post-shift)
+        #   mean_r/g/b       → r_ratio, g_ratio  (chromaticity, post-shift)
         #   b_ratio          → 1 - r_ratio - g_ratio (perfect linear dependency, VIF = ∞)
-        #   cell_diameter_um → size_anomaly    (direct divisor, elevated VIF)
-        #   mcv_fl           → size_anomaly    (direct divisor, elevated VIF)
-        #   true_perimeter   → form_factor = 4π·true_cell_area/true_perimeter² directly (VIF = ∞)
+        #   stain_intensity  → dropped: = f(mean_r+mean_g+mean_b) whose components are already
+        #                      removed; retaining the sum inflates VIF with r_ratio + g_ratio.
+        #   cell_diameter_um → size_anomaly      (direct divisor, elevated VIF)
+        #   mcv_fl           → size_anomaly      (direct divisor, elevated VIF)
+        #   true_perimeter   → form_factor = 4π·true_cell_area/true_perimeter² (VIF = ∞)
         ('drop_engineered_sources', ColumnDropper(columns=[
             "nucleus_area_pct",
             "cell_area_px",
             "perimeter_px",
             "mean_r", "mean_g", "mean_b",
             "b_ratio",
+            "stain_intensity",
             "cell_diameter_um",
             "mcv_fl",
             "true_perimeter",
@@ -211,16 +216,16 @@ def build_preprocessing_pipeline(config=None):
         ('gmm_cluster', GMMClusterer(n_components_range=(3, 5))),
 
         # Step 12: Gaussian noise on Group B + physical engineered features
-        #   cell_diameter_um / true_perimeter dropped in Step 7; targets updated
+        #   cell_diameter_um / true_perimeter / stain_intensity dropped in Step 7; targets updated
         ('gaussian_noise', FunctionSampler(
             func=gaussian_noise_sampler,
             kw_args={
                 "target_features": [
-                    # cell_diameter_um REMOVED — dropped in Step 7
+                    # cell_diameter_um  REMOVED — dropped in Step 7
                     "cytoplasm_ratio", "membrane_smoothness", "granularity_score",
                     "true_cell_area",
-                    # true_perimeter   REMOVED — dropped in Step 7
-                    "stain_intensity",
+                    # true_perimeter    REMOVED — dropped in Step 7
+                    # stain_intensity   REMOVED — dropped in Step 7 (VIF with r_ratio/g_ratio)
                 ],
                 "sigma_percentage": 0.01,
             },
