@@ -20,15 +20,10 @@ class CategoricalProcessor(BaseEstimator, TransformerMixin):
         X_df = pd.DataFrame(X).copy()
 
         # Fit One Hot Encoder for selected columns
-        # drop strategy per column:
-        #   staining_protocol (3 categories) → drop='first'  (removes reference dummy → avoids dummy trap)
-        #   patient_sex       (2 categories) → drop='if_binary' (keeps single indicator column)
         cols_to_ohe = [c for c in self.ohe_cols if c in X_df.columns]
         if cols_to_ohe:
-            _drop_map = {"staining_protocol": "first", "patient_sex": "if_binary"}
-            drop_strategy = [_drop_map.get(c, "if_binary") for c in cols_to_ohe]
             self.ohe = OneHotEncoder(
-                handle_unknown='ignore', sparse_output=False, drop=drop_strategy
+                handle_unknown='ignore', sparse_output=False, drop='if_binary'
             )
             self.ohe.fit(X_df[cols_to_ohe])
             self.ohe_feature_names_ = self.ohe.get_feature_names_out(cols_to_ohe)
