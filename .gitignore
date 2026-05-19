@@ -260,6 +260,7 @@ __pycache__/
 logs/
 plots/
 reports/
+!reports/*.zip
 mlruns/
 wandb/
 .tensorboard/
